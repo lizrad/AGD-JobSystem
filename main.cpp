@@ -9,20 +9,20 @@
 -[] Implement a schedule-based jobsystem in C++
 -[] Support job dependency configuration(Physics -> Collision -> Rendering, as stated in the assignment template).
 	It should be allowed to re-configure dependencies when adding a job to the scheduler(no runtime switching necessary)
--[] Allow the jobsystem to be configured in regards to how many threads it can use and automatically detect how many 
+-[] Allow the jobsystem to be configured in regards to how many threads it can use and automatically detect how many
 	threads are available on the target CPU.
 -[] Choose an ideal worker thread count based on the available CPU threads and comment why you choose that number.
 -[] Ensure the correctness of the program(synchronization, C++ principles, errors, warnings)
 -[] Write a short executive summary on how your jobsystem is supposed to work and which features it supports
-	(work-stealing, lock-free, ...) This can be either max. 1 A4 page additionally, a readme or comments in the source 
+	(work-stealing, lock-free, ...) This can be either max. 1 A4 page additionally, a readme or comments in the source
 	code (but if they are comments, please be sure they explain your reasoning for doing something)
 
 ##Bonus points
 -[] Implement the work-stealing algorithm to use the available resources more efficiently(+10 pts)
--[] Implement the work-stealing queue(requires the above bonus task) with lock - free mechanisms (+5 pts, but please 
-	really only try this if you feel confident and if your solution is already working with locks, don not go for this for 
+-[] Implement the work-stealing queue(requires the above bonus task) with lock - free mechanisms (+5 pts, but please
+	really only try this if you feel confident and if your solution is already working with locks, don not go for this for
 	the first iteration)
--[] Allow configuration of the max worker thread count via command-line parameters and validate them against available 
+-[] Allow configuration of the max worker thread count via command-line parameters and validate them against available
 	threads(capped) (+2 pts)
  */
 
@@ -34,19 +34,19 @@
 #include <string>
 #include <mutex>
 #include <atomic>
-/*
-* ===============================================
-* Optick is a free, light-weight C++ profiler
-* We use it in this exercise to make it easier for
-* you to profile your jobsystem and see what's
-* happening (dependencies, locking, comparison to
-* serial, ...)
-*
-* It's not mandatory to use it, just advised. If
-* you dislike it or have problems with it, feel
-* free to remove it from the solution
-* ===============================================
-*/
+ /*
+ * ===============================================
+ * Optick is a free, light-weight C++ profiler
+ * We use it in this exercise to make it easier for
+ * you to profile your jobsystem and see what's
+ * happening (dependencies, locking, comparison to
+ * serial, ...)
+ *
+ * It's not mandatory to use it, just advised. If
+ * you dislike it or have problems with it, feel
+ * free to remove it from the solution
+ * ===============================================
+ */
 #include "optick_src/optick.h"
 
 using namespace std;
@@ -129,7 +129,7 @@ public:
 		Job* job = new Job(jobFunction);
 		queue.Push(job);
 	}
-	
+
 private:
 	//JobQueue manages thread save access to a queue using a mutex.
 	class JobQueue {
@@ -147,7 +147,7 @@ private:
 			if (queue.empty()) {
 				return nullptr;
 			}
-			Job* job =  queue.front();
+			Job* job = queue.front();
 			queue.pop();
 			return job;
 		}
@@ -157,14 +157,14 @@ private:
 			return queue.empty();
 		}
 	};
-	
-	
+
+
 
 
 	atomic<bool>& isRunning;
 	//TODO: probably should not use a vector here
 	vector<thread> workers;
-	JobQueue queue ;
+	JobQueue queue;
 
 	void Worker(unsigned int id) {
 		while (isRunning) {
@@ -181,7 +181,7 @@ private:
 				PRINT(("WORKER #" + to_string(id) + ": Finish\n").c_str());
 				Finish(job);
 			}
-			else 
+			else
 			{
 				PRINT(("WORKER #" + to_string(id) + ": WorkOnOtherAvailableTask\n").c_str());
 				WorkOnOtherAvailableTask();
@@ -202,14 +202,16 @@ private:
 		}
 		return false;
 	}
-	
+
 	void Execute(Job* job) {
 		job->jobFunction();
 	}
-	 void Finish(Job* job) {
+
+	void Finish(Job* job) {
 		//TODO: Mark job as resolved for dependencies and wait for child jobs(?)
 	}
-	 void WorkOnOtherAvailableTask() {
+
+	void WorkOnOtherAvailableTask() {
 		//TODO: not sure, must get new job from queue and put old one back, but how often do we try etc.?
 	}
 };
@@ -220,7 +222,7 @@ private:
 
 /*
 * ===============================================================
-* In `UpdateParallel` you should use your jobsystem to distribute 
+* In `UpdateParallel` you should use your jobsystem to distribute
 * the tasks to the job system. You can add additional parameters
 * as you see fit for your implementation (to avoid global state)
 * ===============================================================
@@ -289,5 +291,5 @@ int main()
 	main_runner.join();
 
 	OPTICK_SHUTDOWN();
-}
+	}
 
