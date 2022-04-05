@@ -114,7 +114,9 @@ public:
 	JobSystem(atomic<bool>& isRunning) : isRunning(isRunning) {
 		//using max bc hardware_concurrency might return 0 if it cannot read hardware specs 
 		//TODO: should we actually use one core less here bc main already uses one?
+		//TODO: also make this configurable if the user desires
 		const unsigned int core_count = max(1u, std::thread::hardware_concurrency());
+		//TODO: how many worker are optimal for the core count (for now it just uses 1 to 1)
 		for (unsigned int core = 0; core < core_count; ++core) {
 			PRINT(("CREATING WORKER FOR CORE " + to_string(core) + "\n").c_str());
 			workers.push_back(thread(&JobSystem::Worker, this, core));
@@ -126,6 +128,7 @@ public:
 		}
 	}
 	void CreateJob(void(*jobFunction)()) {
+		//TODO: add way to specify dependencies
 		Job* job = new Job(jobFunction);
 		queue.Push(job);
 	}
