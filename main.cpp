@@ -194,12 +194,17 @@ private:
 	Job* GetJob() {
 		return queue.Pop();
 	}
-	 bool CanExecuteJob(Job* job) {
-		//TODO: Check for dependencies
-		return true;
+
+	bool CanExecuteJob(Job* job) {
+		if (job) {
+			//TODO: Check for dependencies
+			return true;
+		}
+		return false;
 	}
-	 void Execute(Job* job) {
-		//TODO: Actually run the function of the job
+	
+	void Execute(Job* job) {
+		job->jobFunction();
 	}
 	 void Finish(Job* job) {
 		//TODO: Mark job as resolved for dependencies and wait for child jobs(?)
