@@ -29,11 +29,10 @@
 #include <cstdio>
 #include <cstdint>
 #include <thread>
+#include <queue>
+#include <algorithm>
+#include <string>
 #include <atomic>
-
-// Use this to switch betweeen serial and parallel processing (for perf. comparison)
-constexpr bool isRunningParallel = false;
-
 /*
 * ===============================================
 * Optick is a free, light-weight C++ profiler
@@ -51,11 +50,25 @@ constexpr bool isRunningParallel = false;
 
 using namespace std;
 
+// Use this to switch betweeen serial and parallel processing (for perf. comparison)
+constexpr bool isRunningParallel = true;
+
+#define RUN_ONCE
+
+#define VERBOSE
+
+#ifdef VERBOSE
+#define PRINT(x) printf(x)
+#else
+#define PRINT(x)
+#endif
+
 // Don't change this macros (unlsess for removing Optick if you want) - if you need something
 // for your local testing, create a new one for yourselves.
 #define MAKE_UPDATE_FUNC(NAME, DURATION) \
 	void Update##NAME() { \
 		OPTICK_EVENT(); \
+		PRINT(#NAME "\n"); \
 		auto start = chrono::high_resolution_clock::now(); \
 		decltype(start) end; \
 		do { \
@@ -77,7 +90,7 @@ MAKE_UPDATE_FUNC(Sound, 1000) // no dependencies
 void UpdateSerial()
 {
 	OPTICK_EVENT();
-
+	PRINT("Serial\n");
 	UpdateInput();
 	UpdatePhysics();
 	UpdateCollision();
@@ -87,6 +100,85 @@ void UpdateSerial()
 	UpdateRendering();
 	UpdateSound();
 }
+
+
+
+class JobSystem {
+
+public:
+	JobSystem(atomic<bool>& isRunning) : isRunning(isRunning) {
+		//using max bc hardware_concurrency might return 0 if it cannot read hardware specs 
+		//TODO: should we actually use one core less here bc main already uses one?
+		const unsigned int core_count = max(1u, std::thread::hardware_concurrency());
+		for (unsigned int core = 0; core < core_count; ++core) {
+			PRINT(("CREATING WORKER FOR CORE " + to_string(core) + "\n").c_str());
+			workers.push_back(thread(&JobSystem::Worker, this, core));
+		}
+	}
+	void JoinJobs() {
+		for (auto& worker : workers) {
+			worker.join();
+		}
+	}
+	void CreateJob(void(*jobFunction)()) {
+		//TODO: create job, lock queue, add to queue, unlock queue
+	}
+	
+private:
+	struct Job {
+		//TODO: needs function pointer, data(?), padding to be an exact multiple of cache line size
+	};
+	atomic<bool>& isRunning;
+	//TODO: probably should not use a vector here
+	vector<thread> workers;
+	queue<Job> queue;
+
+	void Worker(unsigned int id) {
+		while (isRunning) {
+
+			PRINT(("WORKER #" + to_string(id) + ": WaitForAvailableJobs\n").c_str());
+			WaitForAvailableJobs();
+			PRINT(("WORKER #" + to_string(id) + ": GetJob\n").c_str());
+			Job* job = GetJob();
+			PRINT(("WORKER #" + to_string(id) + ": CanExecuteJob\n").c_str());
+			if (CanExecuteJob(job))
+			{
+				PRINT(("WORKER #" + to_string(id) + ": Execute\n").c_str());
+				Execute(job);
+				PRINT(("WORKER #" + to_string(id) + ": Finish\n").c_str());
+				Finish(job);
+			}
+			else 
+			{
+				PRINT(("WORKER #" + to_string(id) + ": WorkOnOtherAvailableTask\n").c_str());
+				WorkOnOtherAvailableTask();
+			}
+		}
+	}
+	void WaitForAvailableJobs() {
+		//TODO: Wait until Queue has Job 
+	}
+	Job* GetJob() {
+		//TODO: Lock Queue, Access Queue, Unlock Queue
+		return new Job();
+	}
+	 bool CanExecuteJob(Job* job) {
+		//TODO: Check for dependencies
+		return true;
+	}
+	 void Execute(Job* job) {
+		//TODO: Actually run the function of the job
+	}
+	 void Finish(Job* job) {
+		//TODO: Mark job as resolved for dependencies and wait for child jobs(?)
+	}
+	 void WorkOnOtherAvailableTask() {
+		//TODO: not sure, must get new job from queue and put old one back, but how often do we try etc.?
+	}
+};
+
+
+
 
 
 /*
@@ -99,7 +191,7 @@ void UpdateSerial()
 void UpdateParallel()
 {
 	OPTICK_EVENT();
-
+	PRINT("Parallel\n");
 	UpdateInput();
 	UpdatePhysics();
 	UpdateCollision();
@@ -121,38 +213,41 @@ int main()
 	* =======================================
 	*/
 	OPTICK_SET_MEMORY_ALLOCATOR(
-		[](size_t size) -> void* { return operator new(size); }, 
-		[](void* p) { operator delete(p); }, 
+		[](size_t size) -> void* { return operator new(size); },
+		[](void* p) { operator delete(p); },
 		[]() { /* Do some TLS initialization here if needed */ }
 	);
 
-	OPTICK_THREAD("MainThread");
-
 	atomic<bool> isRunning = true;
+	OPTICK_THREAD("MainThread");
 	// We spawn a "main" thread so we can have the actual main thread blocking to receive a potential quit
-	thread main_runner([ &isRunning ]()
-	{
-		OPTICK_THREAD("Update");
-
-		while ( isRunning ) 
+	thread main_runner([&isRunning]()
 		{
-			OPTICK_FRAME("Frame");
-			if ( isRunningParallel ) 
-			{
-				UpdateParallel();	
-			} 
-			else
-			{
-				UpdateSerial();
+			JobSystem jobsystem(isRunning);
+			OPTICK_THREAD("Update");
+			while (isRunning) {
+				OPTICK_FRAME("Frame");
+				if (isRunningParallel)
+				{
+					UpdateParallel();
+				}
+				else
+				{
+					UpdateSerial();
+				}
+#ifdef RUN_ONCE
+				isRunning = false;
+#endif // RUN_ONCE
 			}
-		}
-	});
-
+			jobsystem.JoinJobs();
+		});
+#ifndef  RUN_ONCE
 	printf("Type anything to quit...\n");
 	char c;
 	scanf_s("%c", &c, 1);
 	printf("Quitting...\n");
 	isRunning = false;
+#endif // ! RUN_ONCE
 
 	main_runner.join();
 
