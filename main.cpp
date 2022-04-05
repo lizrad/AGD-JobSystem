@@ -2,6 +2,30 @@
  * Amon Ahmed (gs20m014), Karl Bittner (gs20m013), David Panagiotopulos (gs20m019)
  */
 
+ /*
+#Exercise 2 - Implement a multi-threaded jobsystem
+
+##Tasks
+-[] Implement a schedule-based jobsystem in C++
+-[] Support job dependency configuration(Physics -> Collision -> Rendering, as stated in the assignment template).
+	It should be allowed to re-configure dependencies when adding a job to the scheduler(no runtime switching necessary)
+-[] Allow the jobsystem to be configured in regards to how many threads it can use and automatically detect how many 
+	threads are available on the target CPU.
+-[] Choose an ideal worker thread count based on the available CPU threads and comment why you choose that number.
+-[] Ensure the correctness of the program(synchronization, C++ principles, errors, warnings)
+-[] Write a short executive summary on how your jobsystem is supposed to work and which features it supports
+	(work-stealing, lock-free, ...) This can be either max. 1 A4 page additionally, a readme or comments in the source 
+	code (but if they are comments, please be sure they explain your reasoning for doing something)
+
+##Bonus points
+-[] Implement the work-stealing algorithm to use the available resources more efficiently(+10 pts)
+-[] Implement the work-stealing queue(requires the above bonus task) with lock - free mechanisms (+5 pts, but please 
+	really only try this if you feel confident and if your solution is already working with locks, don not go for this for 
+	the first iteration)
+-[] Allow configuration of the max worker thread count via command-line parameters and validate them against available 
+	threads(capped) (+2 pts)
+ */
+
 #include <cstdio>
 #include <cstdint>
 #include <thread>
