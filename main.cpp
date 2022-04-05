@@ -32,6 +32,7 @@
 #include <queue>
 #include <algorithm>
 #include <string>
+#include <mutex>
 #include <atomic>
 /*
 * ===============================================
@@ -101,7 +102,11 @@ void UpdateSerial()
 	UpdateSound();
 }
 
-
+struct Job {
+	Job(void(*jobFunction)()) :jobFunction(jobFunction) {}
+	void(*jobFunction)();
+	//TODO: still need: data(?), padding to be an exact multiple of cache line size
+};
 
 class JobSystem {
 
@@ -121,17 +126,45 @@ public:
 		}
 	}
 	void CreateJob(void(*jobFunction)()) {
-		//TODO: create job, lock queue, add to queue, unlock queue
+		Job* job = new Job(jobFunction);
+		queue.Push(job);
 	}
 	
 private:
-	struct Job {
-		//TODO: needs function pointer, data(?), padding to be an exact multiple of cache line size
+	//JobQueue manages thread save access to a queue using a mutex.
+	class JobQueue {
+		queue<Job*> queue;
+		mutex mutex;
+		//TODO: probably also need a conditional variable here to notify when work is available
+	public:
+		void Push(Job* job) {
+			lock_guard<std::mutex> guard(mutex);
+			queue.push(job);
+		}
+
+		Job* Pop() {
+			lock_guard<std::mutex> guard(mutex);
+			if (queue.empty()) {
+				return nullptr;
+			}
+			Job* job =  queue.front();
+			queue.pop();
+			return job;
+		}
+
+		bool IsEmpty() {
+			lock_guard<std::mutex> guard(mutex);
+			return queue.empty();
+		}
 	};
+	
+	
+
+
 	atomic<bool>& isRunning;
 	//TODO: probably should not use a vector here
 	vector<thread> workers;
-	queue<Job> queue;
+	JobQueue queue ;
 
 	void Worker(unsigned int id) {
 		while (isRunning) {
@@ -159,8 +192,7 @@ private:
 		//TODO: Wait until Queue has Job 
 	}
 	Job* GetJob() {
-		//TODO: Lock Queue, Access Queue, Unlock Queue
-		return new Job();
+		return queue.Pop();
 	}
 	 bool CanExecuteJob(Job* job) {
 		//TODO: Check for dependencies
@@ -188,18 +220,18 @@ private:
 * as you see fit for your implementation (to avoid global state)
 * ===============================================================
 */
-void UpdateParallel()
+void UpdateParallel(JobSystem& jobsystem)
 {
 	OPTICK_EVENT();
 	PRINT("Parallel\n");
-	UpdateInput();
-	UpdatePhysics();
-	UpdateCollision();
-	UpdateAnimation();
-	UpdateParticles();
-	UpdateGameElements();
-	UpdateRendering();
-	UpdateSound();
+	jobsystem.CreateJob(&UpdateInput);
+	jobsystem.CreateJob(&UpdatePhysics);
+	jobsystem.CreateJob(&UpdateCollision);
+	jobsystem.CreateJob(&UpdateAnimation);
+	jobsystem.CreateJob(&UpdateParticles);
+	jobsystem.CreateJob(&UpdateGameElements);
+	jobsystem.CreateJob(&UpdateRendering);
+	jobsystem.CreateJob(&UpdateSound);
 }
 
 int main()
@@ -229,7 +261,7 @@ int main()
 				OPTICK_FRAME("Frame");
 				if (isRunningParallel)
 				{
-					UpdateParallel();
+					UpdateParallel(jobsystem);
 				}
 				else
 				{
