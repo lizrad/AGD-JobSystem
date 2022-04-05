@@ -1,5 +1,5 @@
 /*
- * Please add your names and UIDs in the form: Name <uid>, ...
+ * Amon Ahmed (gs20m014), Karl Bittner (gs20m013), David Panagiotopulos (gs20m019)
  */
 
 #include <cstdio>
