@@ -41,21 +41,21 @@ void JobSystem::Worker(unsigned int id)
 	while (isRunning)
 	{
 
-		PRINT(("WORKER #" + std::to_string(id) + ": WaitForAvailableJobs\n").c_str());
+		PRINTW(id, "WaitForAvailableJobs");
 		WaitForAvailableJobs();
-		PRINT(("WORKER #" + std::to_string(id) + ": GetJob\n").c_str());
+		PRINTW(id, "GetJob");
 		Job* job = GetJob();
-		PRINT(("WORKER #" + std::to_string(id) + ": CanExecuteJob\n").c_str());
+		PRINTW(id, "CanExecuteJob");
 		if (CanExecuteJob(job))
 		{
-			PRINT(("WORKER #" + std::to_string(id) + ": Execute\n").c_str());
+			PRINTW(id, "Execute");
 			Execute(job);
-			PRINT(("WORKER #" + std::to_string(id) + ": Finish\n").c_str());
+			PRINTW(id, "Finish");
 			Finish(job);
 		}
 		else
 		{
-			PRINT(("WORKER #" + std::to_string(id) + ": WorkOnOtherAvailableTask\n").c_str());
+			PRINTW(id, "WorkOnOtherAvailableTask");
 			WorkOnOtherAvailableTask();
 		}
 	}

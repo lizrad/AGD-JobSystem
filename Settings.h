@@ -9,6 +9,12 @@
 #define PRINT(x)
 #endif
 
+#ifdef VERBOSE
+#define PRINTW(workerId, x) printf(("WORKER #" + std::to_string(id) + ": " + x + "\n").c_str())
+#else
+#define PRINTW(x)
+#endif
+
 
 #define RUN_ONCE
 
