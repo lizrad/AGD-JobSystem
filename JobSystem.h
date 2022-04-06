@@ -11,7 +11,9 @@ class JobSystem
 public:
 	JobSystem(std::atomic<bool>& isRunning);
 	void JoinJobs();
-	void CreateJob(JobFunction jobFunction);
+	Job* CreateJob(JobFunction jobFunction);
+	void AddDependency(Job* dependent, Job* dependency);
+	void AddJob(Job* job);
 
 private:
 	std::atomic<bool>& isRunning;

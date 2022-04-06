@@ -6,8 +6,8 @@
 #Exercise 2 - Implement a multi-threaded jobsystem
 
 ##Tasks
--[] Implement a schedule-based jobsystem in C++
--[] Support job dependency configuration(Physics -> Collision -> Rendering, as stated in the assignment template).
+-[x] Implement a schedule-based jobsystem in C++
+-[x] Support job dependency configuration(Physics -> Collision -> Rendering, as stated in the assignment template).
 	It should be allowed to re-configure dependencies when adding a job to the scheduler(no runtime switching necessary)
 -[] Allow the jobsystem to be configured in regards to how many threads it can use and automatically detect how many
 	threads are available on the target CPU.
@@ -106,14 +106,33 @@ void UpdateParallel(JobSystem& jobsystem)
 {
 	OPTICK_EVENT();
 	PRINT("Parallel\n");
-	jobsystem.CreateJob(&UpdateInput);
-	jobsystem.CreateJob(&UpdatePhysics);
-	jobsystem.CreateJob(&UpdateCollision);
-	jobsystem.CreateJob(&UpdateAnimation);
-	jobsystem.CreateJob(&UpdateParticles);
-	jobsystem.CreateJob(&UpdateGameElements);
-	jobsystem.CreateJob(&UpdateRendering);
-	jobsystem.CreateJob(&UpdateSound);
+	Job* updateInputJob = jobsystem.CreateJob(&UpdateInput);
+	Job* updatePhysicsJob = jobsystem.CreateJob(&UpdatePhysics);
+	Job* updateCollisionJob = jobsystem.CreateJob(&UpdateCollision);
+	Job* updateAnimationJob = jobsystem.CreateJob(&UpdateAnimation);
+	Job* updateParticlesJob = jobsystem.CreateJob(&UpdateParticles);
+	Job* updateGameElementsJob = jobsystem.CreateJob(&UpdateGameElements);
+	Job* updateRenderingJob = jobsystem.CreateJob(&UpdateRendering);
+	Job* updateSoundJob = jobsystem.CreateJob(&UpdateSound);
+
+	jobsystem.AddDependency(updatePhysicsJob, updateInputJob);
+	jobsystem.AddDependency(updateCollisionJob, updatePhysicsJob);
+	jobsystem.AddDependency(updateAnimationJob, updateCollisionJob);
+	jobsystem.AddDependency(updateParticlesJob, updateCollisionJob);
+	jobsystem.AddDependency(updateGameElementsJob, updatePhysicsJob);
+
+	jobsystem.AddDependency(updateRenderingJob, updateAnimationJob);
+	jobsystem.AddDependency(updateRenderingJob, updateParticlesJob);
+	jobsystem.AddDependency(updateRenderingJob, updateGameElementsJob);
+
+	jobsystem.AddJob(updateRenderingJob);
+	jobsystem.AddJob(updatePhysicsJob);
+	jobsystem.AddJob(updateAnimationJob);
+	jobsystem.AddJob(updateInputJob);
+	jobsystem.AddJob(updateCollisionJob);
+	jobsystem.AddJob(updateGameElementsJob);
+	jobsystem.AddJob(updateParticlesJob);
+	jobsystem.AddJob(updateSoundJob);
 }
 
 int main()
@@ -162,6 +181,14 @@ int main()
 					UpdateSerial();
 				}
 #ifdef RUN_ONCE
+				//TODO: As isRunning cancels everything, this just waits a bit for all jobs to finish
+				auto start = chrono::high_resolution_clock::now(); \
+				decltype(start) end;
+				do
+				{
+					end = chrono::high_resolution_clock::now();
+				}
+				while (chrono::duration_cast<chrono::microseconds>(end - start).count() < (300000));
 				isRunning = false;
 #endif // RUN_ONCE
 			}

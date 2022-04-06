@@ -36,11 +36,25 @@ void JobSystem::JoinJobs()
 	}
 }
 
-void JobSystem::CreateJob(JobFunction jobFunction)
+Job* JobSystem::CreateJob(JobFunction jobFunction)
 {
 	//TODO: add way to specify dependencies
 	Job* job = new Job;
 	job->jobFunction = jobFunction;
+	return job;
+}
+
+void JobSystem::AddDependency(Job* dependent, Job* dependency)
+{
+	// Add dependent to the job
+	dependency->dependentCount++;
+	dependency->dependents[dependency->dependentCount - 1] = dependent;
+	// Increase dependency count, blocking this job until all dependencies are resolved
+	dependent->dependencyCount++;
+}
+
+void JobSystem::AddJob(Job* job)
+{
 	queue.Push(job);
 	// Notify threads that there is work available
 	wakeCondition.notify_one();
@@ -99,8 +113,15 @@ bool JobSystem::CanExecuteJob(Job* job)
 {
 	if (job)
 	{
-		//TODO: Check for dependencies
-		return true;
+		if (job->dependencyCount > 0)
+		{
+			queue.Push(job);
+			return false;
+		}
+		else
+		{
+			return true;
+		}
 	}
 	return false;
 }
@@ -112,8 +133,14 @@ void JobSystem::Execute(Job* job)
 
 void JobSystem::Finish(Job* job)
 {
-	//TODO: Mark job as resolved for dependencies and wait for child jobs(?)
+	// Remove this job from every depentent
+	for (unsigned int i = 0; i < job->dependentCount; ++i)
+	{
+		job->dependents[i]->dependencyCount--;
+	}
 	delete job;
+	// Notify other threads that a jobs dependencies got updated
+	wakeCondition.notify_one();
 }
 
 bool JobSystem::WorkOnOtherAvailableTask()

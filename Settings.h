@@ -12,10 +12,10 @@
 #ifdef VERBOSE
 #define PRINTW(workerId, x) printf(("WORKER #" + std::to_string(id) + ":" + x + "\n").c_str())
 #else
-#define PRINTW(x)
+#define PRINTW(workerId, x)
 #endif
 
-//#define RUN_ONCE
+#define RUN_ONCE
 
 // Used for automatically record session and saving it
 #define CAPTURE_OPTICK
