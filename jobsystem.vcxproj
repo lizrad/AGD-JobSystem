@@ -139,6 +139,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="JobQueue.cpp" />
+    <ClCompile Include="JobSystem.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="optick_src\optick_capi.cpp" />
     <ClCompile Include="optick_src\optick_core.cpp" />
@@ -151,6 +153,9 @@
     <ClCompile Include="optick_src\optick_server.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="JobQueue.h" />
+    <ClInclude Include="JobSystem.h" />
+    <ClInclude Include="Settings.h" />
     <ClInclude Include="optick_src\optick.config.h" />
     <ClInclude Include="optick_src\optick.h" />
     <ClInclude Include="optick_src\optick_capi.h" />

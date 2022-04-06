@@ -34,6 +34,10 @@
 #include <string>
 #include <mutex>
 #include <atomic>
+
+#include "Settings.h"
+#include "JobSystem.h"
+
  /*
  * ===============================================
  * Optick is a free, light-weight C++ profiler
@@ -50,21 +54,6 @@
 #include "optick_src/optick.h"
 
 using namespace std;
-
-// Use this to switch betweeen serial and parallel processing (for perf. comparison)
-constexpr bool isRunningParallel = true;
-
-#define RUN_ONCE
-
-#define VERBOSE
-
-#ifdef VERBOSE
-#define PRINT(x) printf(x)
-#else
-#define PRINT(x)
-#endif
-
-#define CAPTURE_OPTICK
 
 
 // Don't change this macros (unlsess for removing Optick if you want) - if you need something
@@ -104,127 +93,6 @@ void UpdateSerial()
 	UpdateRendering();
 	UpdateSound();
 }
-
-struct Job {
-	Job(void(*jobFunction)()) :jobFunction(jobFunction) {}
-	void(*jobFunction)();
-	//TODO: still need: data(?), padding to be an exact multiple of cache line size
-};
-
-class JobSystem {
-
-public:
-	JobSystem(atomic<bool>& isRunning) : isRunning(isRunning) {
-		//using max bc hardware_concurrency might return 0 if it cannot read hardware specs 
-		//TODO: should we actually use one core less here bc main already uses one?
-		//TODO: also make this configurable if the user desires
-		const unsigned int core_count = max(1u, std::thread::hardware_concurrency());
-		//TODO: how many worker are optimal for the core count (for now it just uses 1 to 1)
-		for (unsigned int core = 0; core < core_count; ++core) {
-			PRINT(("CREATING WORKER FOR CORE " + to_string(core) + "\n").c_str());
-			workers.push_back(thread(&JobSystem::Worker, this, core));
-		}
-	}
-	void JoinJobs() {
-		for (auto& worker : workers) {
-			worker.join();
-		}
-	}
-	void CreateJob(void(*jobFunction)()) {
-		//TODO: add way to specify dependencies
-		Job* job = new Job(jobFunction);
-		queue.Push(job);
-	}
-
-private:
-	//JobQueue manages thread save access to a queue using a mutex.
-	class JobQueue {
-		queue<Job*> queue;
-		mutex mutex;
-		//TODO: probably also need a conditional variable here to notify when work is available
-	public:
-		void Push(Job* job) {
-			lock_guard<std::mutex> guard(mutex);
-			queue.push(job);
-		}
-
-		Job* Pop() {
-			lock_guard<std::mutex> guard(mutex);
-			if (queue.empty()) {
-				return nullptr;
-			}
-			Job* job = queue.front();
-			queue.pop();
-			return job;
-		}
-
-		bool IsEmpty() {
-			lock_guard<std::mutex> guard(mutex);
-			return queue.empty();
-		}
-	};
-
-
-
-
-	atomic<bool>& isRunning;
-	//TODO: probably should not use a vector here
-	vector<thread> workers;
-	JobQueue queue;
-
-	void Worker(unsigned int id) {
-		OPTICK_THREAD(("WORKER #" + to_string(id)).c_str())
-		while (isRunning) {
-
-			PRINT(("WORKER #" + to_string(id) + ": WaitForAvailableJobs\n").c_str());
-			WaitForAvailableJobs();
-			PRINT(("WORKER #" + to_string(id) + ": GetJob\n").c_str());
-			Job* job = GetJob();
-			PRINT(("WORKER #" + to_string(id) + ": CanExecuteJob\n").c_str());
-			if (CanExecuteJob(job))
-			{
-				PRINT(("WORKER #" + to_string(id) + ": Execute\n").c_str());
-				Execute(job);
-				PRINT(("WORKER #" + to_string(id) + ": Finish\n").c_str());
-				Finish(job);
-			}
-			else
-			{
-				PRINT(("WORKER #" + to_string(id) + ": WorkOnOtherAvailableTask\n").c_str());
-				WorkOnOtherAvailableTask();
-			}
-		}
-	}
-	void WaitForAvailableJobs() {
-		//TODO: Wait until Queue has Job 
-	}
-	Job* GetJob() {
-		return queue.Pop();
-	}
-
-	bool CanExecuteJob(Job* job) {
-		if (job) {
-			//TODO: Check for dependencies
-			return true;
-		}
-		return false;
-	}
-
-	void Execute(Job* job) {
-		job->jobFunction();
-	}
-
-	void Finish(Job* job) {
-		//TODO: Mark job as resolved for dependencies and wait for child jobs(?)
-	}
-
-	void WorkOnOtherAvailableTask() {
-		//TODO: not sure, must get new job from queue and put old one back, but how often do we try etc.?
-	}
-};
-
-
-
 
 
 /*

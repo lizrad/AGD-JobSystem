@@ -39,6 +39,8 @@
     <ClCompile Include="optick_src\optick_server.cpp">
       <Filter>optick</Filter>
     </ClCompile>
+    <ClCompile Include="JobSystem.cpp" />
+    <ClCompile Include="JobQueue.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="optick_src\optick.config.h">
@@ -89,5 +91,8 @@
     <ClInclude Include="optick_src\optick_server.h">
       <Filter>optick</Filter>
     </ClInclude>
+    <ClInclude Include="JobSystem.h" />
+    <ClInclude Include="Settings.h" />
+    <ClInclude Include="JobQueue.h" />
   </ItemGroup>
 </Project>
