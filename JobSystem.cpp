@@ -48,8 +48,7 @@ void JobSystem::CreateJob(void(*jobFunction)())
 void JobSystem::Worker(unsigned int id)
 {
 	OPTICK_THREAD(("WORKER #" + std::to_string(id)).c_str());
-	//TODO: Should isRunning be absolute and thereby cancelling remaining jobs?
-	while (isRunning || !queue.IsEmpty())
+	while (isRunning)
 	{
 		PRINTW(id, "WaitForAvailableJobs");
 		WaitForAvailableJobs();
@@ -76,7 +75,7 @@ void JobSystem::Worker(unsigned int id)
 				std::unique_lock<std::mutex> lock(jobSystemMutex);
 				wakeCondition.wait(lock, [&]()
 					{
-						return stopped;
+						return true;
 					});
 				PRINTW(id, "WAKING UP");
 			}
