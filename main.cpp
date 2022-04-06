@@ -173,6 +173,7 @@ private:
 	JobQueue queue;
 
 	void Worker(unsigned int id) {
+		OPTICK_THREAD(("WORKER #" + to_string(id)).c_str())
 		while (isRunning) {
 
 			PRINT(("WORKER #" + to_string(id) + ": WaitForAvailableJobs\n").c_str());
