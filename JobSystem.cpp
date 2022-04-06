@@ -38,7 +38,6 @@ void JobSystem::JoinJobs()
 
 Job* JobSystem::CreateJob(JobFunction jobFunction)
 {
-	//TODO: add way to specify dependencies
 	Job* job = new Job;
 	job->jobFunction = jobFunction;
 	return job;
@@ -115,6 +114,8 @@ bool JobSystem::CanExecuteJob(Job* job)
 	{
 		if (job->dependencyCount > 0)
 		{
+			//TODO: In combination with newly added jobs, this job will be placed very far behind
+			// Add job back to queue for later
 			queue.Push(job);
 			return false;
 		}
