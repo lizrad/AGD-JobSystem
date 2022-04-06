@@ -14,9 +14,9 @@ struct Job
 //JobQueue manages thread save access to a queue using a mutex.
 class JobQueue
 {
+private:
 	std::queue<Job*> queue;
-	std::mutex mutex;
-	//TODO: probably also need a conditional variable here to notify when work is available
+	std::mutex queueMutex;
 
 public:
 	void Push(Job* job);

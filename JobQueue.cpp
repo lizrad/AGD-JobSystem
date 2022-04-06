@@ -2,13 +2,13 @@
 
 void JobQueue::Push(Job* job)
 {
-	std::lock_guard<std::mutex> guard(mutex);
+	std::lock_guard<std::mutex> guard(queueMutex);
 	queue.push(job);
 }
 
 Job* JobQueue::Pop()
 {
-	std::lock_guard<std::mutex> guard(mutex);
+	std::lock_guard<std::mutex> guard(queueMutex);
 	if (queue.empty())
 	{
 		return nullptr;
@@ -20,6 +20,6 @@ Job* JobQueue::Pop()
 
 bool JobQueue::IsEmpty()
 {
-	std::lock_guard<std::mutex> guard(mutex);
+	std::lock_guard<std::mutex> guard(queueMutex);
 	return queue.empty();
 }

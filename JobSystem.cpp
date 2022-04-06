@@ -22,6 +22,14 @@ JobSystem::JobSystem(std::atomic<bool>& isRunning) : isRunning(isRunning)
 
 void JobSystem::JoinJobs()
 {
+	// Wake all sleeping workers before waiting for them
+	{
+		std::lock_guard<std::mutex> guard(jobSystemMutex);
+		stopped = true;
+		PRINT("WAKE ALL SLEEPING WORKERS\n");
+		wakeCondition.notify_all();
+	}
+
 	for (auto& worker : workers)
 	{
 		worker.join();
@@ -33,14 +41,16 @@ void JobSystem::CreateJob(void(*jobFunction)())
 	//TODO: add way to specify dependencies
 	Job* job = new Job(jobFunction);
 	queue.Push(job);
+	// Notify threads that there is work available
+	wakeCondition.notify_one();
 }
 
 void JobSystem::Worker(unsigned int id)
 {
 	OPTICK_THREAD(("WORKER #" + std::to_string(id)).c_str());
-	while (isRunning)
+	//TODO: Should isRunning be absolute and thereby cancelling remaining jobs?
+	while (isRunning || !queue.IsEmpty())
 	{
-
 		PRINTW(id, "WaitForAvailableJobs");
 		WaitForAvailableJobs();
 		PRINTW(id, "GetJob");
@@ -55,10 +65,24 @@ void JobSystem::Worker(unsigned int id)
 		}
 		else
 		{
-			PRINTW(id, "WorkOnOtherAvailableTask");
-			WorkOnOtherAvailableTask();
+			if (WorkOnOtherAvailableTask())
+			{
+				PRINTW(id, "WorkOnOtherAvailableTask");
+			}
+			else
+			{
+				// If there is nothing else to do, go to sleep
+				PRINTW(id, "GOING TO SLEEP");
+				std::unique_lock<std::mutex> lock(jobSystemMutex);
+				wakeCondition.wait(lock, [&]()
+					{
+						return stopped;
+					});
+				PRINTW(id, "WAKING UP");
+			}
 		}
 	}
+	PRINTW(id, "EXITING");
 }
 
 void JobSystem::WaitForAvailableJobs()
@@ -91,7 +115,8 @@ void JobSystem::Finish(Job* job)
 	//TODO: Mark job as resolved for dependencies and wait for child jobs(?)
 }
 
-void JobSystem::WorkOnOtherAvailableTask()
+bool JobSystem::WorkOnOtherAvailableTask()
 {
 	//TODO: not sure, must get new job from queue and put old one back, but how often do we try etc.?
+	return false;
 }

@@ -19,6 +19,11 @@ private:
 	std::vector<std::thread> workers;
 	JobQueue queue;
 
+	//TODO: Should this be another mutex or the one from the queue?
+	std::mutex jobSystemMutex;
+	std::condition_variable wakeCondition;
+	bool stopped = false;
+
 private:
 	void Worker(unsigned int id);
 	void WaitForAvailableJobs();
@@ -26,6 +31,6 @@ private:
 	bool CanExecuteJob(Job* job);
 	void Execute(Job* job);
 	void Finish(Job* job);
-	void WorkOnOtherAvailableTask();
+	bool WorkOnOtherAvailableTask();
 };
 
