@@ -64,6 +64,9 @@ constexpr bool isRunningParallel = true;
 #define PRINT(x)
 #endif
 
+#define CAPTURE_OPTICK
+
+
 // Don't change this macros (unlsess for removing Optick if you want) - if you need something
 // for your local testing, create a new one for yourselves.
 #define MAKE_UPDATE_FUNC(NAME, DURATION) \
@@ -246,6 +249,9 @@ void UpdateParallel(JobSystem& jobsystem)
 
 int main()
 {
+#ifdef CAPTURE_OPTICK
+	OPTICK_START_CAPTURE();
+#endif // CAPTURE_OPTICK
 	/*
 	* =======================================
 	* Setting memory allocator for Optick
@@ -292,6 +298,11 @@ int main()
 #endif // ! RUN_ONCE
 
 	main_runner.join();
+
+#ifdef CAPTURE_OPTICK
+	OPTICK_STOP_CAPTURE();
+	OPTICK_SAVE_CAPTURE("capture.opt")
+#endif // CAPTURE_OPTICK
 
 	OPTICK_SHUTDOWN();
 	}
