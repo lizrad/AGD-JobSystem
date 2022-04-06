@@ -36,10 +36,11 @@ void JobSystem::JoinJobs()
 	}
 }
 
-void JobSystem::CreateJob(void(*jobFunction)())
+void JobSystem::CreateJob(JobFunction jobFunction)
 {
 	//TODO: add way to specify dependencies
-	Job* job = new Job(jobFunction);
+	Job* job = new Job;
+	job->jobFunction = jobFunction;
 	queue.Push(job);
 	// Notify threads that there is work available
 	wakeCondition.notify_one();
@@ -112,6 +113,7 @@ void JobSystem::Execute(Job* job)
 void JobSystem::Finish(Job* job)
 {
 	//TODO: Mark job as resolved for dependencies and wait for child jobs(?)
+	delete job;
 }
 
 bool JobSystem::WorkOnOtherAvailableTask()

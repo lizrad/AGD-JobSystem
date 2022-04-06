@@ -130,10 +130,18 @@ int main()
 	* =======================================
 	*/
 	OPTICK_SET_MEMORY_ALLOCATOR(
-		[](size_t size) -> void* { return operator new(size); },
-		[](void* p) { operator delete(p); },
-		[]() { /* Do some TLS initialization here if needed */ }
-	);
+		[](size_t size) -> void*
+		{
+			return operator new(size);
+		},
+		[](void* p)
+		{
+			operator delete(p);
+		},
+			[]()
+		{ /* Do some TLS initialization here if needed */
+		}
+		);
 
 	atomic<bool> isRunning = true;
 	OPTICK_THREAD("MainThread");
@@ -142,7 +150,8 @@ int main()
 		{
 			JobSystem jobsystem(isRunning);
 			OPTICK_THREAD("Update");
-			while (isRunning) {
+			while (isRunning)
+			{
 				OPTICK_FRAME("Frame");
 				if (isRunningParallel)
 				{
@@ -173,6 +182,6 @@ int main()
 	OPTICK_SAVE_CAPTURE("capture.opt")
 #endif // CAPTURE_OPTICK
 
-	OPTICK_SHUTDOWN();
-	}
+		OPTICK_SHUTDOWN();
+}
 

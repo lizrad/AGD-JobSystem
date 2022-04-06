@@ -2,12 +2,11 @@
 #include <queue>
 #include <mutex>
 
+typedef void (*JobFunction)();
+
 struct Job
 {
-	Job(void(*jobFunction)()) :jobFunction(jobFunction)
-	{
-	}
-	void(*jobFunction)();
+	JobFunction jobFunction;
 	//TODO: still need: data(?), padding to be an exact multiple of cache line size
 };
 

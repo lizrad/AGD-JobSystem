@@ -6,12 +6,12 @@
 
 
 class JobSystem
-{	
+{
 
 public:
 	JobSystem(std::atomic<bool>& isRunning);
 	void JoinJobs();
-	void CreateJob(void(*jobFunction)());
+	void CreateJob(JobFunction jobFunction);
 
 private:
 	std::atomic<bool>& isRunning;

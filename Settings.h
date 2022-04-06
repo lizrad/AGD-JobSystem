@@ -15,7 +15,7 @@
 #define PRINTW(x)
 #endif
 
-#define RUN_ONCE
+//#define RUN_ONCE
 
 // Used for automatically record session and saving it
 #define CAPTURE_OPTICK
