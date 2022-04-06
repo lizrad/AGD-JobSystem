@@ -59,6 +59,11 @@ void JobSystem::AddJob(Job* job)
 	wakeCondition.notify_one();
 }
 
+bool JobSystem::IsQueueEmpty()
+{
+	return queue.IsEmpty();
+}
+
 void JobSystem::Worker(unsigned int id)
 {
 	OPTICK_THREAD(("WORKER #" + std::to_string(id)).c_str());
@@ -114,7 +119,6 @@ bool JobSystem::CanExecuteJob(Job* job)
 	{
 		if (job->dependencyCount > 0)
 		{
-			//TODO: In combination with newly added jobs, this job will be placed very far behind
 			// Add job back to queue for later
 			queue.Push(job);
 			return false;
@@ -129,6 +133,7 @@ bool JobSystem::CanExecuteJob(Job* job)
 
 void JobSystem::Execute(Job* job)
 {
+	currentlyWorking++;
 	job->jobFunction();
 }
 
@@ -140,12 +145,23 @@ void JobSystem::Finish(Job* job)
 		job->dependents[i]->dependencyCount--;
 	}
 	delete job;
+	currentlyWorking--;
 	// Notify other threads that a jobs dependencies got updated
 	wakeCondition.notify_one();
 }
 
 bool JobSystem::WorkOnOtherAvailableTask()
 {
-	//TODO: not sure, must get new job from queue and put old one back, but how often do we try etc.?
+	// TODO: Is one other try enough?
+	WaitForAvailableJobs();
+	Job* job = GetJob();
+	if (CanExecuteJob(job))
+	{
+		PRINTW(id, "Execute");
+		Execute(job);
+		PRINTW(id, "Finish");
+		Finish(job);
+		return true;
+	}
 	return false;
 }

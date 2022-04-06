@@ -180,27 +180,25 @@ int main()
 				{
 					UpdateSerial();
 				}
-#ifdef RUN_ONCE
-				//TODO: As isRunning cancels everything, this just waits a bit for all jobs to finish
-				auto start = chrono::high_resolution_clock::now(); \
-				decltype(start) end;
-				do
+
+				//TODO: Find a better and more reliable way of waiting (They sometimes slip to the next frame)
+				while ((isRunning && !jobsystem.IsQueueEmpty()) || jobsystem.currentlyWorking > 0)
 				{
-					end = chrono::high_resolution_clock::now();
+					// BIG NOTHINGNESS
 				}
-				while (chrono::duration_cast<chrono::microseconds>(end - start).count() < (300000));
+#ifdef RUN_ONCE
 				isRunning = false;
 #endif // RUN_ONCE
 			}
 			jobsystem.JoinJobs();
 		});
-#ifndef  RUN_ONCE
+#ifndef RUN_ONCE
 	printf("Type anything to quit...\n");
 	char c;
 	scanf_s("%c", &c, 1);
 	printf("Quitting...\n");
 	isRunning = false;
-#endif // ! RUN_ONCE
+#endif // !RUN_ONCE
 
 	main_runner.join();
 

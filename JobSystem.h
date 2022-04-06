@@ -14,6 +14,7 @@ public:
 	Job* CreateJob(JobFunction jobFunction);
 	void AddDependency(Job* dependent, Job* dependency);
 	void AddJob(Job* job);
+	bool IsQueueEmpty();
 
 private:
 	std::atomic<bool>& isRunning;
@@ -25,6 +26,9 @@ private:
 	std::mutex jobSystemMutex;
 	std::condition_variable wakeCondition;
 	bool stopped = false;
+
+public:
+	std::atomic<unsigned int> currentlyWorking = 0;
 
 private:
 	void Worker(unsigned int id);
