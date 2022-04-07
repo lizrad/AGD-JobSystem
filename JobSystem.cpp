@@ -56,7 +56,7 @@ void JobSystem::AddJob(Job* job)
 	queue.Push(job);
 	jobsToDo++;
 	// Notify threads that there is work available
-	//wakeCondition.notify_one();
+	wakeCondition.notify_one();
 }
 
 bool JobSystem::IsQueueEmpty()
@@ -94,7 +94,7 @@ void JobSystem::Worker(unsigned int id)
 				std::unique_lock<std::mutex> lock(jobSystemMutex);
 				wakeCondition.wait(lock, [&]()
 					{
-						return true;
+						return !isRunning || !queue.IsEmpty();
 					});
 				PRINTW(id, "WAKING UP");
 			}
@@ -146,7 +146,7 @@ void JobSystem::Finish(Job* job)
 	delete job;
 	jobsToDo--;
 	// Notify other threads that a jobs dependencies got updated
-	//wakeCondition.notify_one();
+	wakeCondition.notify_one();
 }
 
 bool JobSystem::WorkOnOtherAvailableTask()
