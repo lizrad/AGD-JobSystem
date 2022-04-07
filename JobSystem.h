@@ -28,7 +28,7 @@ private:
 	bool stopped = false;
 
 public:
-	std::atomic<unsigned int> currentlyWorking = 0;
+	std::atomic<unsigned int> jobsToDo = 0;
 
 private:
 	void Worker(unsigned int id);

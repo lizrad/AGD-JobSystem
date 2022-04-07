@@ -54,8 +54,9 @@ void JobSystem::AddDependency(Job* dependent, Job* dependency)
 void JobSystem::AddJob(Job* job)
 {
 	queue.Push(job);
+	jobsToDo++;
 	// Notify threads that there is work available
-	wakeCondition.notify_one();
+	//wakeCondition.notify_one();
 }
 
 bool JobSystem::IsQueueEmpty()
@@ -132,7 +133,6 @@ bool JobSystem::CanExecuteJob(Job* job)
 
 void JobSystem::Execute(Job* job)
 {
-	currentlyWorking++;
 	job->jobFunction();
 }
 
@@ -144,9 +144,9 @@ void JobSystem::Finish(Job* job)
 		job->dependents[i]->dependencyCount--;
 	}
 	delete job;
-	currentlyWorking--;
+	jobsToDo--;
 	// Notify other threads that a jobs dependencies got updated
-	wakeCondition.notify_one();
+	//wakeCondition.notify_one();
 }
 
 bool JobSystem::WorkOnOtherAvailableTask()

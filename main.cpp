@@ -196,7 +196,7 @@ int main(int argc, char* argv[])
 				}
 
 				//TODO: Find a better and more reliable way of waiting (They sometimes slip to the next frame)
-				while ((isRunning && !jobsystem.IsQueueEmpty()) || jobsystem.currentlyWorking > 0)
+				while (isRunning && jobsystem.jobsToDo > 0)
 				{
 					// BIG NOTHINGNESS
 				}
