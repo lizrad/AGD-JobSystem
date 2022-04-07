@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
 
-//#define VERBOSE
+#define VERBOSE
 
 #ifdef VERBOSE
 #define PRINT(x) printf(x)

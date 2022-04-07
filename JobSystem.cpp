@@ -156,9 +156,7 @@ bool JobSystem::WorkOnOtherAvailableTask()
 	Job* job = GetJob();
 	if (CanExecuteJob(job))
 	{
-		PRINTW(id, "Execute");
 		Execute(job);
-		PRINTW(id, "Finish");
 		Finish(job);
 		return true;
 	}
