@@ -9,7 +9,7 @@
 -[x] Implement a schedule-based jobsystem in C++
 -[x] Support job dependency configuration(Physics -> Collision -> Rendering, as stated in the assignment template).
 	It should be allowed to re-configure dependencies when adding a job to the scheduler(no runtime switching necessary)
--[] Allow the jobsystem to be configured in regards to how many threads it can use and automatically detect how many
+-[x] Allow the jobsystem to be configured in regards to how many threads it can use and automatically detect how many
 	threads are available on the target CPU.
 -[] Choose an ideal worker thread count based on the available CPU threads and comment why you choose that number.
 -[] Ensure the correctness of the program(synchronization, C++ principles, errors, warnings)
