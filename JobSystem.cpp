@@ -6,12 +6,12 @@
 #include "Settings.h"
 #include "optick_src/optick.h"
 
-JobSystem::JobSystem(std::atomic<bool>& isRunning) : isRunning(isRunning)
+JobSystem::JobSystem(std::atomic<bool>& isRunning, int numberOfThreads) : isRunning(isRunning)
 {
 	//using max bc hardware_concurrency might return 0 if it cannot read hardware specs 
 	//TODO: should we actually use one core less here bc main already uses one?
 	//TODO: also make this configurable if the user desires
-	const unsigned int core_count = std::max(1u, std::thread::hardware_concurrency());
+	const unsigned int core_count = std::max(1u, (numberOfThreads == 0 ? std::thread::hardware_concurrency() : numberOfThreads));
 	//TODO: how many worker are optimal for the core count (for now it just uses 1 to 1)
 	for (unsigned int core = 0; core < core_count; ++core)
 	{

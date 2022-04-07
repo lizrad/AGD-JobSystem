@@ -135,7 +135,7 @@ void UpdateParallel(JobSystem& jobsystem)
 	jobsystem.AddJob(updateSoundJob);
 }
 
-int main()
+int main(int argc, char* argv[])
 {
 #ifdef CAPTURE_OPTICK
 	OPTICK_START_CAPTURE();
@@ -161,13 +161,27 @@ int main()
 		{ /* Do some TLS initialization here if needed */
 		}
 		);
+	OPTICK_THREAD("MainThread");
+
+	int numberOfThreads = 0;
+	if (argc >= 2)
+	{
+		try
+		{
+			numberOfThreads = std::stoi(argv[1]);
+		}
+		catch (const std::invalid_argument&)
+		{
+			printf("Invalid argument.");
+			exit(1);
+		}
+	}
 
 	atomic<bool> isRunning = true;
-	OPTICK_THREAD("MainThread");
 	// We spawn a "main" thread so we can have the actual main thread blocking to receive a potential quit
-	thread main_runner([&isRunning]()
+	thread main_runner([&isRunning, &numberOfThreads]()
 		{
-			JobSystem jobsystem(isRunning);
+			JobSystem jobsystem(isRunning, numberOfThreads);
 			OPTICK_THREAD("Update");
 			while (isRunning)
 			{
@@ -204,9 +218,9 @@ int main()
 
 #ifdef CAPTURE_OPTICK
 	OPTICK_STOP_CAPTURE();
-	OPTICK_SAVE_CAPTURE("capture.opt")
+	OPTICK_SAVE_CAPTURE("capture.opt");
 #endif // CAPTURE_OPTICK
 
-		OPTICK_SHUTDOWN();
+	OPTICK_SHUTDOWN();
 }
 
