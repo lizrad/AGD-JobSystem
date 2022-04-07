@@ -195,7 +195,6 @@ int main(int argc, char* argv[])
 					UpdateSerial();
 				}
 
-				//TODO: Find a better and more reliable way of waiting (They sometimes slip to the next frame)
 				while (isRunning && jobsystem.jobsToDo > 0)
 				{
 					// BIG NOTHINGNESS
