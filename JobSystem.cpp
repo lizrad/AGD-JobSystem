@@ -134,6 +134,7 @@ void JobSystem::Worker(unsigned int id)
 			}
 		}
 	}
+	//Need to call this here otherwise we get stuck in ParallelUpdate if we quit early
 	allJobsDoneConditionalVariable.notify_all();
 	PRINTW(thread_id, "Exiting...");
 }
