@@ -10,14 +10,56 @@ JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isR
 {
 	//using hardware core count - 1 because we already use one thread for the main runner
 	//using max function because hardware_concurrency might return 0 if it cannot read hardware specs 
-	unsigned int core_count = std::max(1u, std::thread::hardware_concurrency() - 1);
-	//if we have a valid user input use that instead
-
-	//TODO: how many worker are optimal for the core count (for now it just uses 1 to 1)
+	unsigned int available_threads = std::max(1u, std::thread::hardware_concurrency() - 1);
+	PRINT(("Max Available Threads: " + std::to_string(available_threads) + "\n").c_str());
+	//Through measuring we found out that for this very specific exercise the optimal amount of threads 
+	//would be 3 as any further thread does not really decrease the time spent. See measuring output below:
+	/*
+	Average parallel frame time for input thread count of: 1:       9310147.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 2:       5893307.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 3:       5680801.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 4:       5695426.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 5:       5697207.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 6:       5700832.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 7:       5685485.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 8:       5682539.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 9:       5678031.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 10:      5681702.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 11:      5686856.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 12:      5689230.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 13:      5677641.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 14:      5691101.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 15:      5692206.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 16:      5701897.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 17:      5710286.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 18:      5686505.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 19:      5696779.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 20:      5696573.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 21:      5701224.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 22:      5702335.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 23:      5691203.000000ns. (Averaged over 100 frames.)
+	Average parallel frame time for input thread count of: 24:      5688854.000000ns. (Averaged over 100 frames.)
+	*/
+	//This makes sense as with the way the dependencies are set up at most there will only be 3 jobs running at
+	//the same time. Even this case is quite unlikely, so during the majority of the time there will only be
+	//1-2 jobs running concurrently, explaining the relatively little time gain when going from 2 to 3 threads.
+	//This optimum is VERY specific to this demo program, so in a real life setting the default optimum would most likely
+	//be equal to the maximum available hardware threads (or even exceed it, when for example doing a lot of IO operations). 
+	//At the very least another speed test after settling on an implementation would be necessary to find a new sensible
+	//optimum as a real world application would not allow for such easy  guesstimation concerning the maxmimum concurrent jobs.
+	unsigned int optimal_threads = std::max(available_threads, 3u);
+	unsigned int thread_count = optimal_threads;
+	//If a user input for the thread count was specified
 	if (desiredThreadCount > 0) {
-		core_count = std::clamp(desiredThreadCount, 1, static_cast<int>(core_count));
+		//We are capping against the maximum available threads here. BUT we are not sure if this is what was desired 
+		//in this exercise. It would also make sense to cap against the optimum but as this is very specfic for this 
+		//demo program it might not be what the user wants. In a real world setting we thought it would make more sense
+		//to give the user as much freedom as possible. 
+		if (desiredThreadCount <= available_threads) {
+			thread_count = desiredThreadCount;
+		}
 	}
-	for (unsigned int core = 0; core < core_count; ++core)
+	for (unsigned int core = 0; core < thread_count; ++core)
 	{
 		PRINT(("CREATING WORKER FOR CORE " + std::to_string(core) + "\n").c_str());
 		workers.push_back(std::thread(&JobSystem::Worker, this, core));
@@ -58,8 +100,8 @@ void JobSystem::AddDependency(Job* dependent, Job* dependency)
 
 void JobSystem::AddJob(Job* job)
 {
-	queue.Push(job);
 	jobsToDo++;
+	queue.Push(job);
 	// Notify threads that there is work available
 	wakeCondition.notify_one();
 }
@@ -92,7 +134,7 @@ void JobSystem::Worker(unsigned int id)
 			{
 				PRINTW(id, "WorkOnOtherAvailableTask");
 			}
-			else
+			else if(!stopped)
 			{
 				// If there is nothing else to do, go to sleep
 				PRINTW(id, "GOING TO SLEEP");
@@ -149,9 +191,9 @@ void JobSystem::Finish(Job* job)
 		job->dependents[i]->dependencyCount--;
 	}
 	delete job;
-	jobsToDo--;
 	// Notify other threads that a jobs dependencies got updated
 	wakeCondition.notify_one();
+	jobsToDo--;
 }
 
 bool JobSystem::WorkOnOtherAvailableTask()
