@@ -5,14 +5,14 @@ JobQueue::JobQueue(std::atomic<bool>& isRunning) :isRunning(isRunning) {}
 
 void JobQueue::Push(Job* job)
 {
-	std::lock_guard<std::mutex> guard(queueMutex);
-	deque.push_front(job);
+	std::lock_guard<std::mutex> guard(mutex);
+	deque.push_back(job);
 	NotifyOne();
 }
 
 Job* JobQueue::Pop()
 {
-	std::lock_guard<std::mutex> guard(queueMutex);
+	std::lock_guard<std::mutex> guard(mutex);
 	if (deque.empty())
 	{
 		return nullptr;
@@ -24,7 +24,7 @@ Job* JobQueue::Pop()
 
 Job* JobQueue::Steal()
 {
-	std::lock_guard<std::mutex> guard(queueMutex);
+	std::lock_guard<std::mutex> guard(mutex);
 	if (deque.empty())
 	{
 		return nullptr;
@@ -33,20 +33,19 @@ Job* JobQueue::Steal()
 	deque.pop_back();
 	return job;
 }
-
+bool JobQueue::IsEmpty() {
+	std::lock_guard<std::mutex> guard(mutex);
+	return deque.empty();
+}
 void JobQueue::WaitForJob() {
 	std::mutex mutex;
 	std::unique_lock<std::mutex> lock(mutex);
-	queueConditionalVariable.wait(lock, [&]()
+	conditionalVariable.wait(lock, [&]()
 		{
 			return !isRunning || !deque.empty();
 		});
 }
 
-void JobQueue::NotifyAll() {
-	queueConditionalVariable.notify_all();
-}
-
 void JobQueue::NotifyOne() {
-	queueConditionalVariable.notify_one();
+	conditionalVariable.notify_one();
 }

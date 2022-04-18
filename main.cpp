@@ -129,37 +129,39 @@ void UpdateParallel(JobSystem& jobsystem, std::atomic<bool>& isRunning)
 {
 	OPTICK_EVENT();
 	PRINT("Parallel\n");
-	Job* updateInputJob = jobsystem.CreateJob(&UpdateInput);
-	Job* updatePhysicsJob = jobsystem.CreateJob(&UpdatePhysics);
-	Job* updateCollisionJob = jobsystem.CreateJob(&UpdateCollision);
-	Job* updateAnimationJob = jobsystem.CreateJob(&UpdateAnimation);
-	Job* updateParticlesJob = jobsystem.CreateJob(&UpdateParticles);
-	Job* updateGameElementsJob = jobsystem.CreateJob(&UpdateGameElements);
-	Job* updateRenderingJob = jobsystem.CreateJob(&UpdateRendering);
-	Job* updateSoundJob = jobsystem.CreateJob(&UpdateSound);
+	for (int i = 0; i < SIMULATENOUS_FRAME_COUNT; ++i) {
+		Job* updateInputJob = jobsystem.CreateJob(&UpdateInput);
+		Job* updatePhysicsJob = jobsystem.CreateJob(&UpdatePhysics);
+		Job* updateCollisionJob = jobsystem.CreateJob(&UpdateCollision);
+		Job* updateAnimationJob = jobsystem.CreateJob(&UpdateAnimation);
+		Job* updateGameElementsJob = jobsystem.CreateJob(&UpdateGameElements);
+		Job* updateRenderingJob = jobsystem.CreateJob(&UpdateRendering);
+		Job* updateSoundJob = jobsystem.CreateJob(&UpdateSound);
 
-	jobsystem.AddDependency(updatePhysicsJob, updateInputJob);
-	jobsystem.AddDependency(updateCollisionJob, updatePhysicsJob);
-	jobsystem.AddDependency(updateAnimationJob, updateCollisionJob);
-	jobsystem.AddDependency(updateParticlesJob, updateCollisionJob);
-	jobsystem.AddDependency(updateGameElementsJob, updatePhysicsJob);
+		
+		jobsystem.AddDependency(updatePhysicsJob, updateInputJob);
+		jobsystem.AddDependency(updateCollisionJob, updatePhysicsJob);
+		jobsystem.AddDependency(updateAnimationJob, updateCollisionJob);
+		jobsystem.AddDependency(updateGameElementsJob, updatePhysicsJob);
 
-	jobsystem.AddDependency(updateRenderingJob, updateAnimationJob);
-	jobsystem.AddDependency(updateRenderingJob, updateParticlesJob);
-	jobsystem.AddDependency(updateRenderingJob, updateGameElementsJob);
+		jobsystem.AddDependency(updateRenderingJob, updateAnimationJob);
+		jobsystem.AddDependency(updateRenderingJob, updateGameElementsJob);
 
-	jobsystem.AddJob(updateRenderingJob);
-	jobsystem.AddJob(updatePhysicsJob);
-	jobsystem.AddJob(updateAnimationJob);
-	jobsystem.AddJob(updateInputJob);
-	jobsystem.AddJob(updateCollisionJob);
-	jobsystem.AddJob(updateGameElementsJob);
-	jobsystem.AddJob(updateParticlesJob);
-	jobsystem.AddJob(updateSoundJob);
-	while (jobsystem.jobsToDo > 0 && isRunning)
-	{
-		// BIG NOTHINGNESS
+		for (int i = 0; i < PARTICLE_JOB_COUNT; ++i) {
+			Job* updateParticlesJob = jobsystem.CreateJob(&UpdateParticles);
+			jobsystem.AddDependency(updateParticlesJob, updateCollisionJob);
+			jobsystem.AddDependency(updateRenderingJob, updateParticlesJob);
+			jobsystem.AddJob(updateParticlesJob);
+		}
+		jobsystem.AddJob(updateRenderingJob);
+		jobsystem.AddJob(updatePhysicsJob);
+		jobsystem.AddJob(updateAnimationJob);
+		jobsystem.AddJob(updateInputJob);
+		jobsystem.AddJob(updateCollisionJob);
+		jobsystem.AddJob(updateGameElementsJob);
+		jobsystem.AddJob(updateSoundJob);
 	}
+	jobsystem.WaitForAllJobs();
 }
 
 
@@ -193,7 +195,6 @@ void MeasureAverageFrameTime(int inputThreadCount, size_t frameCount) {
 		threadCount = " for input thread count of: " + std::to_string(inputThreadCount);
 	}
 	PRINT_ESSENTIAL(("Average " + updateType + " frame time" + threadCount + ":\t" + to_string(average) + "ns. (Averaged over " + std::to_string(frameCount) + " frames.)\n").c_str());
-	isRunning = false;
 	jobsystem.JoinJobs();
 }
 #endif // MEASURING_AVERAGE_TIME

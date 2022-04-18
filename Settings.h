@@ -4,6 +4,8 @@
 
 // Use this to switch betweeen serial and parallel processing (for perf. comparison)
 constexpr bool isRunningParallel = true;
+#define SIMULATENOUS_FRAME_COUNT 10
+#define PARTICLE_JOB_COUNT 10
 //#define VERBOSE
 #define ESSENTIAL
 //#define RUN_ONCE

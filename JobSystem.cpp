@@ -1,5 +1,5 @@
 #include "JobSystem.h"
-
+#include <stdlib.h>
 #include <algorithm>
 #include <mutex>
 #include <string>
@@ -8,7 +8,7 @@
 
 int JobSystem::thread_id = -1;
 
-JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isRunning(isRunning), queue(isRunning)
+JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isRunning(isRunning)
 {
 	//using hardware core count - 1 because we already use one thread for the main runner
 	//using max function because hardware_concurrency might return 0 if it cannot read hardware specs 
@@ -64,18 +64,18 @@ JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isR
 	for (unsigned int core = 0; core < thread_count; ++core)
 	{
 		PRINT(("CREATING WORKER FOR CORE " + std::to_string(core) + "\n").c_str());
+		JobQueue* queue = new JobQueue(isRunning);
+		queues.push_back(queue);
 		workers.push_back(std::thread(&JobSystem::Worker, this, core));
 	}
 }
 
 void JobSystem::JoinJobs()
 {
-	// Wake all sleeping workers before waiting for them
-	{
+	isRunning = false;
+	
 		stopped = true;
-		queue.NotifyAll();
-	}
-
+		WakeAll();
 	for (auto& worker : workers)
 	{
 		worker.join();
@@ -91,6 +91,10 @@ Job* JobSystem::CreateJob(JobFunction jobFunction)
 
 void JobSystem::AddDependency(Job* dependent, Job* dependency)
 {
+	if (dependency->dependentCount > MAX_DEPENDENT_COUNT) {
+		PRINT_ESSENTIAL(("Jobsystem only supports a max of " + std::to_string(MAX_DEPENDENT_COUNT) + " dependents.\n").c_str());
+		exit(1);
+	}
 	// Add dependent to the job
 	dependency->dependents[dependency->dependentCount] = dependent;
 	dependency->dependentCount++;
@@ -101,7 +105,19 @@ void JobSystem::AddDependency(Job* dependent, Job* dependency)
 void JobSystem::AddJob(Job* job)
 {
 	jobsToDo++;
-	queue.Push(job);
+	job->queue = queues[current_queue_index];
+	queues[current_queue_index]->Push(job);
+	current_queue_index = ((current_queue_index + 1) % static_cast<int>(queues.size()));
+}
+
+void JobSystem::WaitForAllJobs()
+{
+	std::mutex mutex;
+	std::unique_lock<std::mutex> lock(mutex);
+	allJobsDoneConditionalVariable.wait(lock, [&]()
+		{
+			return !isRunning || jobsToDo==0;
+		});
 }
 
 void JobSystem::Worker(unsigned int id)
@@ -112,33 +128,54 @@ void JobSystem::Worker(unsigned int id)
 	{
 		WaitForAvailableJobs();
 		//Try to work a job
-		if (!TryWorkingOnJob())
-		{
-			//Try again
-			//leaving this here for posterities sakes as this was how the pseudo code defined it
-			//but we tested the worker function without this extra call and everything worked as efficient as before
-			TryWorkingOnJob();
+		if (!TryToWorkJob()) {
+			StealJob();
+			TryToWorkJob();
 		}
 	}
 	PRINTW(thread_id, "Exiting...");
 }
-
+bool JobSystem::TryToWorkJob() {
+	auto job = GetJob();
+	if (CanExecuteJob(job))
+	{
+		Execute(job);
+		Finish(job);
+		return true;
+	}
+	return false;
+}
 void JobSystem::WaitForAvailableJobs()
 {
 	PRINTW(thread_id, "WaitForAvailableJobs");
 	if (!stopped)
 	{
 		// If there is nothing else to do, go to sleep
-		PRINTW(thread_id, "Sleeping..."); 
-		queue.WaitForJob();
+		PRINTW(thread_id, "Sleeping...");
+		GetQueue()->WaitForJob();
 		PRINTW(thread_id, "Waking...");
 	}
 }
 
+JobQueue* JobSystem::GetQueue() {
+	PRINTW(thread_id, "GetQueue");
+	return queues[thread_id];
+}
 Job* JobSystem::GetJob()
 {
 	PRINTW(thread_id, "GetJob");
-	return queue.Steal();
+	Job* job = GetQueue()->Pop();
+	return job;
+}
+
+void JobSystem::StealJob() {
+	PRINTW(thread_id, "StealJob");
+	int randomIndex = rand() % queues.size();
+	auto job = GetQueue()->Steal();
+	if (job) {
+		job->queue = GetQueue();
+	}
+	GetQueue()->Push(job);
 }
 
 bool JobSystem::CanExecuteJob(Job* job)
@@ -150,7 +187,7 @@ bool JobSystem::CanExecuteJob(Job* job)
 		if (job->dependencyCount > 0)
 		{
 			// Add job back to queue for later
-			queue.Push(job);
+			GetQueue()->Push(job);
 			return false;
 		}
 		else
@@ -170,26 +207,16 @@ void JobSystem::Execute(Job* job)
 void JobSystem::Finish(Job* job)
 {
 	PRINTW(thread_id, "Finish");
-	// Remove this job from every depentent
-	for (unsigned int i = 0; i < job->dependentCount; ++i)
-	{
-		job->dependents[i]->dependencyCount--;
-	}
 	delete job;
-	// Notify other threads that a jobs dependencies got updated
-	queue.NotifyOne();
 	jobsToDo--;
+	if (jobsToDo == 0) {
+		allJobsDoneConditionalVariable.notify_all();
+	}
 }
 
-bool JobSystem::TryWorkingOnJob()
-{
-	PRINTW(thread_id, "TryWorkingOnJob");
-	Job* job = GetJob();
-	if (CanExecuteJob(job))
-	{
-		Execute(job);
-		Finish(job);
-		return true;
+void JobSystem::WakeAll() {
+	for (int i = 0; i < queues.size(); ++i) {
+		queues[i]->NotifyOne();
 	}
-	return false;
+
 }
