@@ -9,7 +9,7 @@ class JobSystem
 {
 
 public:
-	JobSystem(std::atomic<bool>& isRunning, int numberOfThreads);
+	JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount);
 	void JoinJobs();
 	Job* CreateJob(JobFunction jobFunction);
 	void AddDependency(Job* dependent, Job* dependency);

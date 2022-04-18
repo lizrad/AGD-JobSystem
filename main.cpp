@@ -80,6 +80,27 @@ MAKE_UPDATE_FUNC(GameElements, 2400) // depends on Physics
 MAKE_UPDATE_FUNC(Rendering, 2000) // depends on Animation, Particles, GameElements
 MAKE_UPDATE_FUNC(Sound, 1000) // no dependencies
 
+int ReadInput(int argc, char* argv[]) {
+	int inputThreadCount = 0;
+	if (argc >= 2)
+	{
+		try
+		{
+			inputThreadCount = std::stoi(argv[1]);
+		}
+		catch (const std::invalid_argument&)
+		{
+			printf("Invalid argument.");
+			exit(1);
+		}
+	}
+	if (inputThreadCount <= 0) {
+		printf("Desired thread count must be bigger than zero.");
+		exit(1);
+	}
+	return inputThreadCount;
+}
+
 void UpdateSerial()
 {
 	OPTICK_EVENT();
@@ -163,25 +184,14 @@ int main(int argc, char* argv[])
 		);
 	OPTICK_THREAD("MainThread");
 
-	int numberOfThreads = 0;
-	if (argc >= 2)
-	{
-		try
-		{
-			numberOfThreads = std::stoi(argv[1]);
-		}
-		catch (const std::invalid_argument&)
-		{
-			printf("Invalid argument.");
-			exit(1);
-		}
-	}
+	//Read potential thread input
+	int inputThreadCount = ReadInput(argc, argv);
 
 	atomic<bool> isRunning = true;
 	// We spawn a "main" thread so we can have the actual main thread blocking to receive a potential quit
-	thread main_runner([&isRunning, &numberOfThreads]()
+	thread main_runner([&isRunning, &inputThreadCount]()
 		{
-			JobSystem jobsystem(isRunning, numberOfThreads);
+			JobSystem jobsystem(isRunning, inputThreadCount);
 			OPTICK_THREAD("Update");
 			while (isRunning)
 			{
