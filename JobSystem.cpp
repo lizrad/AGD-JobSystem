@@ -73,9 +73,8 @@ JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isR
 void JobSystem::JoinJobs()
 {
 	isRunning = false;
-	
-		stopped = true;
-		WakeAll();
+	stopped = true;
+	WakeAll();
 	for (auto& worker : workers)
 	{
 		worker.join();
@@ -127,12 +126,15 @@ void JobSystem::Worker(unsigned int id)
 	while (isRunning)
 	{
 		WaitForAvailableJobs();
-		//Try to work a job
-		if (!TryToWorkJob()) {
-			StealJob();
-			TryToWorkJob();
+		if (!stopped) {
+			//Try to work a job
+			if (!TryToWorkJob()) {
+				StealJob();
+				TryToWorkJob();
+			}
 		}
 	}
+	allJobsDoneConditionalVariable.notify_all();
 	PRINTW(thread_id, "Exiting...");
 }
 bool JobSystem::TryToWorkJob() {
@@ -218,5 +220,4 @@ void JobSystem::WakeAll() {
 	for (int i = 0; i < queues.size(); ++i) {
 		queues[i]->NotifyOne();
 	}
-
 }

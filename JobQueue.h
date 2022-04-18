@@ -42,7 +42,10 @@ struct Job
 		for (unsigned int i = 0; i < dependentCount; ++i)
 		{
 			dependents[i]->dependencyCount--;
-			dependents[i]->queue->NotifyOne();
+			//This check is necessary because depencies could be finished before dependents even get added to any queue
+			if (dependents[i]->queue) {
+				dependents[i]->queue->NotifyOne();
+			}
 		}
 	}
 };

@@ -18,7 +18,7 @@
 	code (but if they are comments, please be sure they explain your reasoning for doing something)
 
 ##Bonus points
--[] Implement the work-stealing algorithm to use the available resources more efficiently(+10 pts)
+-[x] Implement the work-stealing algorithm to use the available resources more efficiently(+10 pts)
 -[] Implement the work-stealing queue(requires the above bonus task) with lock - free mechanisms (+5 pts, but please
 	really only try this if you feel confident and if your solution is already working with locks, don not go for this for
 	the first iteration)

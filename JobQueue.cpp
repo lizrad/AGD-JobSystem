@@ -38,11 +38,11 @@ bool JobQueue::IsEmpty() {
 	return deque.empty();
 }
 void JobQueue::WaitForJob() {
-	std::mutex mutex;
-	std::unique_lock<std::mutex> lock(mutex);
+	std::mutex tempMutex;
+	std::unique_lock<std::mutex> lock(tempMutex);
 	conditionalVariable.wait(lock, [&]()
 		{
-			return !isRunning || !deque.empty();
+			return (!isRunning || !deque.empty());
 		});
 }
 
