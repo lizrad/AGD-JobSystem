@@ -20,9 +20,6 @@ private:
 	std::vector<std::thread> workers;
 	JobQueue queue;
 
-	//TODO: Should this be another mutex or the one from the queue?
-	std::mutex jobSystemMutex;
-	std::condition_variable wakeCondition;
 	bool stopped = false;
 
 public:

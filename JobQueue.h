@@ -1,11 +1,11 @@
 #pragma once
-#include <queue>
+#include <deque>
 #include <mutex>
 
 typedef void (*JobFunction)();
 
 struct Job
-{
+{	
 	JobFunction jobFunction = nullptr; // 4 Byte?
 	// Number of current dependencies to other jobs (which this job has to wait for)
 	std::atomic<unsigned int> dependencyCount = 0;
@@ -19,13 +19,18 @@ struct Job
 //JobQueue manages thread save access to a queue using a mutex.
 class JobQueue
 {
-private:
-	std::queue<Job*> queue;
-	std::mutex queueMutex;
-
 public:
+	JobQueue(std::atomic<bool>& isRunning);
 	void Push(Job* job);
 	Job* Pop();
-	bool IsEmpty();
+	Job* Steal();
+	void WaitForJob();
+	void NotifyAll();
+	void NotifyOne();
+private:
+	std::deque<Job*> deque;
+	std::mutex queueMutex;
+	std::atomic<bool>& isRunning;
+	std::condition_variable queueConditionalVariable;
 };
 

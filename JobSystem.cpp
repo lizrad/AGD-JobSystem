@@ -8,7 +8,7 @@
 
 int JobSystem::thread_id = -1;
 
-JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isRunning(isRunning)
+JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isRunning(isRunning), queue(isRunning)
 {
 	//using hardware core count - 1 because we already use one thread for the main runner
 	//using max function because hardware_concurrency might return 0 if it cannot read hardware specs 
@@ -72,10 +72,8 @@ void JobSystem::JoinJobs()
 {
 	// Wake all sleeping workers before waiting for them
 	{
-		std::lock_guard<std::mutex> guard(jobSystemMutex);
 		stopped = true;
-		PRINT("WAKE ALL SLEEPING WORKERS\n");
-		wakeCondition.notify_all();
+		queue.NotifyAll();
 	}
 
 	for (auto& worker : workers)
@@ -104,8 +102,6 @@ void JobSystem::AddJob(Job* job)
 {
 	jobsToDo++;
 	queue.Push(job);
-	// Notify threads that there is work available
-	wakeCondition.notify_one();
 }
 
 void JobSystem::Worker(unsigned int id)
@@ -119,6 +115,8 @@ void JobSystem::Worker(unsigned int id)
 		if (!TryWorkingOnJob())
 		{
 			//Try again
+			//leaving this here for posterities sakes as this was how the pseudo code defined it
+			//but we tested the worker function without this extra call and everything worked as efficient as before
 			TryWorkingOnJob();
 		}
 	}
@@ -131,12 +129,8 @@ void JobSystem::WaitForAvailableJobs()
 	if (!stopped)
 	{
 		// If there is nothing else to do, go to sleep
-		PRINTW(thread_id, "Sleeping...");
-		std::unique_lock<std::mutex> lock(jobSystemMutex);
-		wakeCondition.wait(lock, [&]()
-			{
-				return !isRunning || !queue.IsEmpty();
-			});
+		PRINTW(thread_id, "Sleeping..."); 
+		queue.WaitForJob();
 		PRINTW(thread_id, "Waking...");
 	}
 }
@@ -144,7 +138,7 @@ void JobSystem::WaitForAvailableJobs()
 Job* JobSystem::GetJob()
 {
 	PRINTW(thread_id, "GetJob");
-	return queue.Pop();
+	return queue.Steal();
 }
 
 bool JobSystem::CanExecuteJob(Job* job)
@@ -183,7 +177,7 @@ void JobSystem::Finish(Job* job)
 	}
 	delete job;
 	// Notify other threads that a jobs dependencies got updated
-	wakeCondition.notify_one();
+	queue.NotifyOne();
 	jobsToDo--;
 }
 

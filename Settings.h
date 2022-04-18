@@ -4,7 +4,7 @@
 
 // Use this to switch betweeen serial and parallel processing (for perf. comparison)
 constexpr bool isRunningParallel = true;
-#define VERBOSE
+//#define VERBOSE
 #define ESSENTIAL
 //#define RUN_ONCE
 // Used for automatically record session and saving it
