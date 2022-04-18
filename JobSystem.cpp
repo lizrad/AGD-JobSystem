@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <mutex>
 #include <string>
-#include "Settings.h"
 #include "optick_src/optick.h"
+#include "Settings.h"
+
+int JobSystem::thread_id = -1;
 
 JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isRunning(isRunning)
 {
@@ -47,7 +49,7 @@ JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isR
 	//be equal to the maximum available hardware threads (or even exceed it, when for example doing a lot of IO operations). 
 	//At the very least another speed test after settling on an implementation would be necessary to find a new sensible
 	//optimum as a real world application would not allow for such easy  guesstimation concerning the maxmimum concurrent jobs.
-	unsigned int optimal_threads = std::max(available_threads, 3u);
+	unsigned int optimal_threads = std::min(available_threads, 3u);
 	unsigned int thread_count = optimal_threads;
 	//If a user input for the thread count was specified
 	if (desiredThreadCount > 0) {
@@ -55,7 +57,7 @@ JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isR
 		//in this exercise. It would also make sense to cap against the optimum but as this is very specfic for this 
 		//demo program it might not be what the user wants. In a real world setting we thought it would make more sense
 		//to give the user as much freedom as possible. 
-		if (desiredThreadCount <= available_threads) {
+		if (static_cast<unsigned int>(desiredThreadCount) <= available_threads) {
 			thread_count = desiredThreadCount;
 		}
 	}
@@ -92,8 +94,8 @@ Job* JobSystem::CreateJob(JobFunction jobFunction)
 void JobSystem::AddDependency(Job* dependent, Job* dependency)
 {
 	// Add dependent to the job
+	dependency->dependents[dependency->dependentCount] = dependent;
 	dependency->dependentCount++;
-	dependency->dependents[dependency->dependentCount - 1] = dependent;
 	// Increase dependency count, blocking this job until all dependencies are resolved
 	dependent->dependencyCount++;
 }
@@ -106,64 +108,51 @@ void JobSystem::AddJob(Job* job)
 	wakeCondition.notify_one();
 }
 
-bool JobSystem::IsQueueEmpty()
-{
-	return queue.IsEmpty();
-}
-
 void JobSystem::Worker(unsigned int id)
 {
+	thread_id = id;
 	OPTICK_THREAD(("WORKER #" + std::to_string(id)).c_str());
 	while (isRunning)
 	{
-		PRINTW(id, "WaitForAvailableJobs");
 		WaitForAvailableJobs();
-		PRINTW(id, "GetJob");
-		Job* job = GetJob();
-		PRINTW(id, "CanExecuteJob");
-		if (CanExecuteJob(job))
+		//Try to work a job
+		if (!TryWorkingOnJob())
 		{
-			PRINTW(id, "Execute");
-			Execute(job);
-			PRINTW(id, "Finish");
-			Finish(job);
-		}
-		else
-		{
-			if (WorkOnOtherAvailableTask())
-			{
-				PRINTW(id, "WorkOnOtherAvailableTask");
-			}
-			else if(!stopped)
-			{
-				// If there is nothing else to do, go to sleep
-				PRINTW(id, "GOING TO SLEEP");
-				std::unique_lock<std::mutex> lock(jobSystemMutex);
-				wakeCondition.wait(lock, [&]()
-					{
-						return !isRunning || !queue.IsEmpty();
-					});
-				PRINTW(id, "WAKING UP");
-			}
+			//Try again
+			TryWorkingOnJob();
 		}
 	}
-	PRINTW(id, "EXITING");
+	PRINTW(thread_id, "Exiting...");
 }
 
 void JobSystem::WaitForAvailableJobs()
 {
-	//TODO: Wait until Queue has Job 
+	PRINTW(thread_id, "WaitForAvailableJobs");
+	if (!stopped)
+	{
+		// If there is nothing else to do, go to sleep
+		PRINTW(thread_id, "Sleeping...");
+		std::unique_lock<std::mutex> lock(jobSystemMutex);
+		wakeCondition.wait(lock, [&]()
+			{
+				return !isRunning || !queue.IsEmpty();
+			});
+		PRINTW(thread_id, "Waking...");
+	}
 }
 
 Job* JobSystem::GetJob()
 {
+	PRINTW(thread_id, "GetJob");
 	return queue.Pop();
 }
 
 bool JobSystem::CanExecuteJob(Job* job)
 {
+	PRINTW(thread_id, "CanExecuteJob");
 	if (job)
 	{
+		//This jobs still depends on another job finishing
 		if (job->dependencyCount > 0)
 		{
 			// Add job back to queue for later
@@ -180,11 +169,13 @@ bool JobSystem::CanExecuteJob(Job* job)
 
 void JobSystem::Execute(Job* job)
 {
+	PRINTW(thread_id, "Execute");
 	job->jobFunction();
 }
 
 void JobSystem::Finish(Job* job)
 {
+	PRINTW(thread_id, "Finish");
 	// Remove this job from every depentent
 	for (unsigned int i = 0; i < job->dependentCount; ++i)
 	{
@@ -196,10 +187,9 @@ void JobSystem::Finish(Job* job)
 	jobsToDo--;
 }
 
-bool JobSystem::WorkOnOtherAvailableTask()
+bool JobSystem::TryWorkingOnJob()
 {
-	// TODO: Is one other try enough?
-	WaitForAvailableJobs();
+	PRINTW(thread_id, "TryWorkingOnJob");
 	Job* job = GetJob();
 	if (CanExecuteJob(job))
 	{

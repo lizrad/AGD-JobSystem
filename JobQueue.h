@@ -6,13 +6,13 @@ typedef void (*JobFunction)();
 
 struct Job
 {
-	JobFunction jobFunction; // 4 Byte?
+	JobFunction jobFunction = nullptr; // 4 Byte?
 	// Number of current dependencies to other jobs (which this job has to wait for)
 	std::atomic<unsigned int> dependencyCount = 0;
 	// Number of dependents of this job
 	unsigned int dependentCount = 0;
 	// Jobs that depend on this job
-	Job* dependents[16];
+	Job* dependents[16] = {};
 	//TODO: still need: data(?), padding to be an exact multiple of cache line size
 };
 

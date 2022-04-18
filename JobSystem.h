@@ -1,6 +1,6 @@
 #pragma once
 #include <atomic>
-#include <vector>
+#include <vector>   
 #include "JobQueue.h"
 
 
@@ -14,11 +14,9 @@ public:
 	Job* CreateJob(JobFunction jobFunction);
 	void AddDependency(Job* dependent, Job* dependency);
 	void AddJob(Job* job);
-	bool IsQueueEmpty();
-
+	__declspec(thread) static int thread_id;
 private:
 	std::atomic<bool>& isRunning;
-	//TODO: probably should not use a vector here
 	std::vector<std::thread> workers;
 	JobQueue queue;
 
@@ -37,6 +35,6 @@ private:
 	bool CanExecuteJob(Job* job);
 	void Execute(Job* job);
 	void Finish(Job* job);
-	bool WorkOnOtherAvailableTask();
+	bool TryWorkingOnJob();
 };
 

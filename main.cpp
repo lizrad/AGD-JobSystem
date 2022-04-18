@@ -11,8 +11,8 @@
 	It should be allowed to re-configure dependencies when adding a job to the scheduler(no runtime switching necessary)
 -[x] Allow the jobsystem to be configured in regards to how many threads it can use and automatically detect how many
 	threads are available on the target CPU.
--[] Choose an ideal worker thread count based on the available CPU threads and comment why you choose that number.
--[] Ensure the correctness of the program(synchronization, C++ principles, errors, warnings)
+-[x] Choose an ideal worker thread count based on the available CPU threads and comment why you choose that number.
+-[x] Ensure the correctness of the program(synchronization, C++ principles, errors, warnings)
 -[] Write a short executive summary on how your jobsystem is supposed to work and which features it supports
 	(work-stealing, lock-free, ...) This can be either max. 1 A4 page additionally, a readme or comments in the source
 	code (but if they are comments, please be sure they explain your reasoning for doing something)
@@ -22,22 +22,21 @@
 -[] Implement the work-stealing queue(requires the above bonus task) with lock - free mechanisms (+5 pts, but please
 	really only try this if you feel confident and if your solution is already working with locks, don not go for this for
 	the first iteration)
--[] Allow configuration of the max worker thread count via command-line parameters and validate them against available
+-[x] Allow configuration of the max worker thread count via command-line parameters and validate them against available
 	threads(capped) (+2 pts)
  */
 
 #include <cstdio>
 #include <cstdint>
+#ifdef MEASURING_AVERAGE_TIME
 #include <chrono>
+#endif //MEASURING_AVERAGE_TIME
 #include <thread>
 #include <queue>
 #include <algorithm>
 #include <string>
 #include <mutex>
 #include <atomic>
-#include "Settings.h"
-#include "JobSystem.h"
-
  /*
  * ===============================================
  * Optick is a free, light-weight C++ profiler
@@ -52,6 +51,9 @@
  * ===============================================
  */
 #include "optick_src/optick.h"
+#include "Settings.h"
+#include "JobSystem.h"
+
 
 using namespace std;
 
@@ -123,7 +125,7 @@ void UpdateSerial()
 * as you see fit for your implementation (to avoid global state)
 * ===============================================================
 */
-void UpdateParallel(JobSystem& jobsystem ,std::atomic<bool>& isRunning)
+void UpdateParallel(JobSystem& jobsystem, std::atomic<bool>& isRunning)
 {
 	OPTICK_EVENT();
 	PRINT("Parallel\n");
@@ -166,33 +168,33 @@ void MeasureAverageFrameTime(int inputThreadCount, size_t frameCount) {
 	std::atomic<bool> isRunning = true;
 	JobSystem jobsystem(isRunning, inputThreadCount);
 	std::vector<long long> frameTimes;
-	
-		for (int frame = 0; frame < frameCount; ++frame) {
-			auto startTime = std::chrono::system_clock::now();
-			if (isRunningParallel) {
-				UpdateParallel(jobsystem, isRunning);
-			}
-			else {
-				UpdateSerial();
-			}
-			auto endTime = std::chrono::system_clock::now();
-			long long frameTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
-			frameTimes.push_back(frameTime);
-		}
-		long long sum = 0;
-		for (auto& frameTime : frameTimes) {
-			sum += frameTime;
-		}
-		double average = static_cast<double>(sum) / frameTimes.size();
-		std::string updateType = "seriell";
-		std::string threadCount = "";
+
+	for (int frame = 0; frame < frameCount; ++frame) {
+		auto startTime = std::chrono::system_clock::now();
 		if (isRunningParallel) {
-			updateType = "parallel"; 
-			threadCount = " for input thread count of: " + std::to_string(inputThreadCount);
+			UpdateParallel(jobsystem, isRunning);
 		}
-		PRINT_ESSENTIAL(("Average "+updateType+" frame time"+threadCount+":\t" + to_string(average) + "ns. (Averaged over "+std::to_string(frameCount)+" frames.)\n").c_str());
-		isRunning = false;
-		jobsystem.JoinJobs();
+		else {
+			UpdateSerial();
+		}
+		auto endTime = std::chrono::system_clock::now();
+		long long frameTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
+		frameTimes.push_back(frameTime);
+	}
+	long long sum = 0;
+	for (auto& frameTime : frameTimes) {
+		sum += frameTime;
+	}
+	double average = static_cast<double>(sum) / frameTimes.size();
+	std::string updateType = "seriell";
+	std::string threadCount = "";
+	if (isRunningParallel) {
+		updateType = "parallel";
+		threadCount = " for input thread count of: " + std::to_string(inputThreadCount);
+	}
+	PRINT_ESSENTIAL(("Average " + updateType + " frame time" + threadCount + ":\t" + to_string(average) + "ns. (Averaged over " + std::to_string(frameCount) + " frames.)\n").c_str());
+	isRunning = false;
+	jobsystem.JoinJobs();
 }
 #endif // MEASURING_AVERAGE_TIME
 

@@ -1,15 +1,15 @@
-#pragma once
+#pragma once      
 #include <cstdio>
 
 
 // Use this to switch betweeen serial and parallel processing (for perf. comparison)
 constexpr bool isRunningParallel = true;
-//#define VERBOSE
+#define VERBOSE
 #define ESSENTIAL
-#define RUN_ONCE
+//#define RUN_ONCE
 // Used for automatically record session and saving it
 #define CAPTURE_OPTICK
-#define MEASURING_AVERAGE_TIME
+//#define MEASURING_AVERAGE_TIME
 
 
 #ifdef VERBOSE
@@ -19,7 +19,7 @@ constexpr bool isRunningParallel = true;
 #endif
 
 #ifdef VERBOSE
-#define PRINTW(workerId, x) printf(("WORKER #" + std::to_string(id) + ":" + x + "\n").c_str())
+#define PRINTW(workerId, x) printf(("WORKER #" + std::to_string(workerId) + ":" + x + "\n").c_str())
 #else
 #define PRINTW(workerId, x)
 #endif
