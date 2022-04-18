@@ -28,13 +28,13 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <chrono>
 #include <thread>
 #include <queue>
 #include <algorithm>
 #include <string>
 #include <mutex>
 #include <atomic>
-
 #include "Settings.h"
 #include "JobSystem.h"
 
@@ -93,10 +93,10 @@ int ReadInput(int argc, char* argv[]) {
 			printf("Invalid argument.");
 			exit(1);
 		}
-	}
-	if (inputThreadCount <= 0) {
-		printf("Desired thread count must be bigger than zero.");
-		exit(1);
+		if (inputThreadCount <= 0) {
+			printf("Desired thread count must be bigger than zero.");
+			exit(1);
+		}
 	}
 	return inputThreadCount;
 }
@@ -123,7 +123,7 @@ void UpdateSerial()
 * as you see fit for your implementation (to avoid global state)
 * ===============================================================
 */
-void UpdateParallel(JobSystem& jobsystem)
+void UpdateParallel(JobSystem& jobsystem ,std::atomic<bool>& isRunning)
 {
 	OPTICK_EVENT();
 	PRINT("Parallel\n");
@@ -154,7 +154,47 @@ void UpdateParallel(JobSystem& jobsystem)
 	jobsystem.AddJob(updateGameElementsJob);
 	jobsystem.AddJob(updateParticlesJob);
 	jobsystem.AddJob(updateSoundJob);
+	while (jobsystem.jobsToDo > 0 && isRunning)
+	{
+		// BIG NOTHINGNESS
+	}
 }
+
+
+#ifdef MEASURING_AVERAGE_TIME
+void MeasureAverageFrameTime(int inputThreadCount, size_t frameCount) {
+	std::atomic<bool> isRunning = true;
+	JobSystem jobsystem(isRunning, inputThreadCount);
+	std::vector<long long> frameTimes;
+	
+		for (int frame = 0; frame < frameCount; ++frame) {
+			auto startTime = std::chrono::system_clock::now();
+			if (isRunningParallel) {
+				UpdateParallel(jobsystem, isRunning);
+			}
+			else {
+				UpdateSerial();
+			}
+			auto endTime = std::chrono::system_clock::now();
+			long long frameTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
+			frameTimes.push_back(frameTime);
+		}
+		long long sum = 0;
+		for (auto& frameTime : frameTimes) {
+			sum += frameTime;
+		}
+		double average = static_cast<double>(sum) / frameTimes.size();
+		std::string updateType = "seriell";
+		std::string threadCount = "";
+		if (isRunningParallel) {
+			updateType = "parallel"; 
+			threadCount = " for input thread count of: " + std::to_string(inputThreadCount);
+		}
+		PRINT_ESSENTIAL(("Average "+updateType+" frame time"+threadCount+":\t" + to_string(average) + "ns. (Averaged over "+std::to_string(frameCount)+" frames.)\n").c_str());
+		isRunning = false;
+		jobsystem.JoinJobs();
+}
+#endif // MEASURING_AVERAGE_TIME
 
 int main(int argc, char* argv[])
 {
@@ -184,30 +224,31 @@ int main(int argc, char* argv[])
 		);
 	OPTICK_THREAD("MainThread");
 
-	//Read potential thread input
 	int inputThreadCount = ReadInput(argc, argv);
 
 	atomic<bool> isRunning = true;
 	// We spawn a "main" thread so we can have the actual main thread blocking to receive a potential quit
 	thread main_runner([&isRunning, &inputThreadCount]()
 		{
+#ifdef MEASURING_AVERAGE_TIME
+			for (int i = 1; i <= 24; ++i) {
+				MeasureAverageFrameTime(i, 100);
+			}
+#endif // MEASURING_AVERAGE_TIME
+
 			JobSystem jobsystem(isRunning, inputThreadCount);
 			OPTICK_THREAD("Update");
 			while (isRunning)
 			{
 				OPTICK_FRAME("Frame");
+
 				if (isRunningParallel)
 				{
-					UpdateParallel(jobsystem);
+					UpdateParallel(jobsystem, isRunning);
 				}
 				else
 				{
 					UpdateSerial();
-				}
-
-				while (isRunning && jobsystem.jobsToDo > 0)
-				{
-					// BIG NOTHINGNESS
 				}
 #ifdef RUN_ONCE
 				isRunning = false;

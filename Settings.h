@@ -1,7 +1,16 @@
 #pragma once
 #include <cstdio>
 
-#define VERBOSE
+
+// Use this to switch betweeen serial and parallel processing (for perf. comparison)
+constexpr bool isRunningParallel = true;
+//#define VERBOSE
+#define ESSENTIAL
+#define RUN_ONCE
+// Used for automatically record session and saving it
+#define CAPTURE_OPTICK
+#define MEASURING_AVERAGE_TIME
+
 
 #ifdef VERBOSE
 #define PRINT(x) printf(x)
@@ -15,10 +24,11 @@
 #define PRINTW(workerId, x)
 #endif
 
-#define RUN_ONCE
+#ifdef ESSENTIAL
+#define PRINT_ESSENTIAL(x) printf(x)
+#else
+#define PRINT_ESSENTIAL(x)
+#endif
 
-// Used for automatically record session and saving it
-#define CAPTURE_OPTICK
 
-// Use this to switch betweeen serial and parallel processing (for perf. comparison)
-constexpr bool isRunningParallel = true;
+
