@@ -13,7 +13,7 @@
 	threads are available on the target CPU.
 -[x] Choose an ideal worker thread count based on the available CPU threads and comment why you choose that number.
 -[x] Ensure the correctness of the program(synchronization, C++ principles, errors, warnings)
--[] Write a short executive summary on how your jobsystem is supposed to work and which features it supports
+-[x] Write a short executive summary on how your jobsystem is supposed to work and which features it supports
 	(work-stealing, lock-free, ...) This can be either max. 1 A4 page additionally, a readme or comments in the source
 	code (but if they are comments, please be sure they explain your reasoning for doing something)
 
@@ -25,6 +25,23 @@
 -[x] Allow configuration of the max worker thread count via command-line parameters and validate them against available
 	threads(capped) (+2 pts)
  */
+
+
+/*
+##Summary:
+This is an implementation of a work stealing jobsystem. It is very specific implementation for demo purposes, because of this
+every job gets spawned through a "main" thread. Because of this the work gets split among the threads in a round robin scheme,
+instead of the usual way where jobs get put in the queue of the caller thread. The job system depends on conditional variables
+in each queue to wait for new work, when none is available, so it does not waste 100% of the CPU for nothing. 
+The queue itself uses lock guards to ensure thread safe accesse to the stored data, as it is possible for two threads to access
+at same time, when one (or more= of the thread is stealing. For more detail check the source files itself (Jobsystem.h, Jobsystem.cpp,
+JobQueue.h, JobQueue.cpp)
+
+In Settings.h are some flags defined that control the program.
+
+The application accepts one unsigned integer command line argument, which controls how many threads are used (capped by the maximum
+amount of hardware threads). If not arguement is given, a default optimum amount is used.
+*/
 
 #include <cstdio>
 #include <cstdint>
@@ -82,6 +99,7 @@ MAKE_UPDATE_FUNC(GameElements, 2400) // depends on Physics
 MAKE_UPDATE_FUNC(Rendering, 2000) // depends on Animation, Particles, GameElements
 MAKE_UPDATE_FUNC(Sound, 1000) // no dependencies
 
+//very naive way to read input for user defined thread count
 int ReadInput(int argc, char* argv[]) {
 	int inputThreadCount = 0;
 	if (argc >= 2)
@@ -129,6 +147,8 @@ void UpdateParallel(JobSystem& jobsystem, std::atomic<bool>& isRunning)
 {
 	OPTICK_EVENT();
 	PRINT("Parallel\n");
+
+	//run multiple frames at same time for stress testing.
 	for (int i = 0; i < SIMULATENOUS_FRAME_COUNT; ++i) {
 		Job* updateInputJob = jobsystem.CreateJob(&UpdateInput);
 		Job* updatePhysicsJob = jobsystem.CreateJob(&UpdatePhysics);
@@ -147,6 +167,7 @@ void UpdateParallel(JobSystem& jobsystem, std::atomic<bool>& isRunning)
 		jobsystem.AddDependency(updateRenderingJob, updateAnimationJob);
 		jobsystem.AddDependency(updateRenderingJob, updateGameElementsJob);
 
+		//create multiple particle jobs for stress testing
 		for (int i = 0; i < PARTICLE_JOB_COUNT; ++i) {
 			Job* updateParticlesJob = jobsystem.CreateJob(&UpdateParticles);
 			jobsystem.AddDependency(updateParticlesJob, updateCollisionJob);
@@ -161,11 +182,18 @@ void UpdateParallel(JobSystem& jobsystem, std::atomic<bool>& isRunning)
 		jobsystem.AddJob(updateGameElementsJob);
 		jobsystem.AddJob(updateSoundJob);
 	}
+	//Wait for all jobs of this frame to be finished. We weren't sure if this is what this exercise intended, but it
+	//made the most sense to us, because otherwise it would for example be possible that the render job of frame 1 would
+	//run after the render job of frame 2, which would lead to wrong behaviour in a real world application. In a real world
+	//application it would also make sense to allow jobs to be defined to be frame independet, and thus allowing them to 
+	//be worked over more than a few frames to ensure fps smoothness (which would be useful for something like asset streaming for
+	//example).
 	jobsystem.WaitForAllJobs();
 }
 
 
 #ifdef MEASURING_AVERAGE_TIME
+//Measures the average time a frame took.
 void MeasureAverageFrameTime(int inputThreadCount, size_t frameCount) {
 	std::atomic<bool> isRunning = true;
 	JobSystem jobsystem(isRunning, inputThreadCount);
@@ -229,12 +257,14 @@ int main(int argc, char* argv[])
 
 	int inputThreadCount = ReadInput(argc, argv);
 
+	//Atomic is necessary so main thread can send quitting to other threads.
 	atomic<bool> isRunning = true;
-	// We spawn a "main" thread so we can have the actual main thread blocking to receive a potential quit
+	//We spawn a "main" thread so we can have the actual main thread blocking to receive a potential quit
 	thread main_runner([&isRunning, &inputThreadCount]()
 		{
 #ifdef MEASURING_AVERAGE_TIME
-			for (int i = 1; i <= 24; ++i) {
+			int maxThreadCount = 24;
+			for (int i = 1; i <= maxThreadCount; ++i) {
 				MeasureAverageFrameTime(i, 100);
 			}
 #endif // MEASURING_AVERAGE_TIME
@@ -244,7 +274,6 @@ int main(int argc, char* argv[])
 			while (isRunning)
 			{
 				OPTICK_FRAME("Frame");
-
 				if (isRunningParallel)
 				{
 					UpdateParallel(jobsystem, isRunning);
@@ -257,6 +286,7 @@ int main(int argc, char* argv[])
 				isRunning = false;
 #endif // RUN_ONCE
 			}
+			//Join all jobs to ensure clean quit
 			jobsystem.JoinJobs();
 		});
 #ifndef RUN_ONCE
