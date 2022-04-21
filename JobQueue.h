@@ -28,6 +28,7 @@ private:
 	std::deque<Job*> deque;
 	std::mutex mutex;
 	std::atomic<bool>& isRunning;
+	std::mutex conditionalVaribleMutex;
 	std::condition_variable conditionalVariable;
 };
 

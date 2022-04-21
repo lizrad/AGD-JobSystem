@@ -43,8 +43,7 @@ bool JobQueue::IsEmpty() {
 	return deque.empty();
 }
 void JobQueue::WaitForJob() {
-	std::mutex tempMutex;
-	std::unique_lock<std::mutex> lock(tempMutex);
+	std::unique_lock<std::mutex> lock(conditionalVaribleMutex);
 	//Wait until jobs are available or the system stopped runnning.
 	conditionalVariable.wait(lock, [&]()
 		{

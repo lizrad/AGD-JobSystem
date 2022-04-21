@@ -121,8 +121,7 @@ void JobSystem::AddJob(Job* job)
 //Waits until the jobsystem has no job left. This is used so a frame can wait for all it's jobs to be finished.
 void JobSystem::WaitForAllJobs()
 {
-	std::mutex mutex;
-	std::unique_lock<std::mutex> lock(mutex);
+	std::unique_lock<std::mutex> lock(waitForAllJobMutex);
 	//Predicate checks if jobsystem has no more jobs to do or it has stopped running.
 	allJobsDoneConditionalVariable.wait(lock, [&]()
 		{

@@ -32,6 +32,7 @@ private:
 	std::condition_variable allJobsDoneConditionalVariable;
 	std::vector<std::thread> workers;
 	std::vector<JobQueue*> queues;
+	std::mutex waitForAllJobMutex;
 
 	void Worker(unsigned int id);
 	bool TryToWorkJob();
