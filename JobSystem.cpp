@@ -58,8 +58,9 @@ JobSystem::JobSystem(std::atomic<bool>& isRunning, int desiredThreadCount) : isR
 		//in this exercise. It would also make sense to cap against the optimum but as this is very specfic for this 
 		//demo program it might not be what the user wants. In a real world setting we thought it would make more sense
 		//to give the user as much freedom as possible. 
-		if (static_cast<unsigned int>(desiredThreadCount) <= available_threads) {
-			thread_count = desiredThreadCount;
+		unsigned int threadCount = static_cast<unsigned int>(desiredThreadCount);
+		if (threadCount <= available_threads) {
+			thread_count = threadCount;
 		}
 	}
 	//spawn a worker and a queue for each thread
@@ -200,8 +201,9 @@ void JobSystem::StealJob() {
 		auto job = GetQueue()->Steal();
 		if (job) {
 			//If we got a job we add it to the private end of our own queue
-			job->queue = GetQueue();
-			GetQueue()->Push(job);
+			JobQueue* queue = GetQueue();
+			job->queue = queue;
+			queue->Push(job);
 		}
 	}
 }

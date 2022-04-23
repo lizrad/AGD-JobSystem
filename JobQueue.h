@@ -42,8 +42,8 @@ struct Job
 	// Number of dependents of this job
 	unsigned int dependentCount = 0; //4 bytes
 	// Jobs that depend on this job
-	Job* dependents[MAX_DEPENDENT_COUNT] = {}; //8 Bytes * 6 = 48 bytes
-	//Sum bytes = 8+4+4+4+(8*13)=128bytes, which should be two full cache lines.
+	Job* dependents[MAX_DEPENDENT_COUNT] = {}; //8 Bytes * 13 = 104 bytes
+	//Sum bytes = 8+8+4+4+(8*13)=128bytes, which should be two full cache lines.
 
 	~Job() {
 		for (unsigned int i = 0; i < dependentCount; ++i)

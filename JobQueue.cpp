@@ -38,10 +38,12 @@ Job* JobQueue::Steal()
 	deque.pop_front();
 	return job;
 }
+
 bool JobQueue::IsEmpty() {
 	std::lock_guard<std::mutex> guard(mutex);
 	return deque.empty();
 }
+
 void JobQueue::WaitForJob() {
 	std::unique_lock<std::mutex> lock(conditionalVaribleMutex);
 	//Wait until jobs are available or the system stopped runnning.
