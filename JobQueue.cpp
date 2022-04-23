@@ -19,10 +19,9 @@ Job* JobQueue::Pop()
 	{
 		return nullptr;
 	}
-	//front is defined as public end, this ensure that workers work on LIFO basis when stealing but use FIFO when working on their own
-	//jobs which should be cache friendlier.
-	Job* job = deque.front();
-	deque.pop_front();
+	//back is defined as private end
+	Job* job = deque.back();
+	deque.pop_back();
 	return job;
 }
 
@@ -33,9 +32,10 @@ Job* JobQueue::Steal()
 	{
 		return nullptr;
 	}
-	//back is defined as private end
-	Job* job = deque.back();
-	deque.pop_back();
+	//front is defined as public end, this ensure that workers work on LIFO basis when stealing but use FIFO when working on their own
+	//jobs which should be cache friendlier.
+	Job* job = deque.front();
+	deque.pop_front();
 	return job;
 }
 bool JobQueue::IsEmpty() {
