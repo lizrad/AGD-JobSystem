@@ -97,6 +97,7 @@ Job* JobSystem::CreateJob(JobFunction jobFunction)
 void JobSystem::AddDependency(Job* dependent, Job* dependency)
 {
 	if (dependency->dependentCount > MAX_DEPENDENT_COUNT-1) {
+		//We only support a max amount of dependcies so job struct stays the size of two cache lines to be cache friendly
 		PRINT_ESSENTIAL(("Jobsystem only supports a max of " + std::to_string(MAX_DEPENDENT_COUNT) + " dependents.\n").c_str());
 		exit(1);
 	}

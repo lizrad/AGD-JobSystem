@@ -32,7 +32,7 @@ Job* JobQueue::Steal()
 	{
 		return nullptr;
 	}
-	//front is defined as public end, this ensure that workers work on LIFO basis when stealing but use FIFO when working on their own
+	//front is defined as public end, this ensure that workers work on FIFO basis when stealing but use LIFO when working on their own
 	//jobs which should be cache friendlier.
 	Job* job = deque.front();
 	deque.pop_front();
